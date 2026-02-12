@@ -1,4 +1,3 @@
-
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 export interface User {
@@ -55,6 +54,57 @@ export async function login(username: string, password: string): Promise<LoginRe
     }
   } catch (error) {
     console.error('Login error:', error);
+    return {
+      success: false,
+      message: 'Network error. Please check your connection.',
+    };
+  }
+}
+
+/**
+ * Create a new user
+ */
+export async function createUser(
+  username: string,
+  name: string,
+  roll_number: string,
+  department: string,
+  team: string,
+  role: string,
+  password: string
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/createuser`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        username,
+        name,
+        roll_number,
+        department,
+        team,
+        role,
+        password,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.success) {
+      return {
+        success: true,
+        message: data.message || 'User created successfully',
+      };
+    } else {
+      return {
+        success: false,
+        message: data.message || 'Failed to create user',
+      };
+    }
+  } catch (error) {
+    console.error('Create user error:', error);
     return {
       success: false,
       message: 'Network error. Please check your connection.',

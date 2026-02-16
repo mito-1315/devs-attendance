@@ -61,7 +61,7 @@ export async function fetchData(spreadsheetId) {
 /**
  * Check if a sheet_id already exists in SHEET_HISTORY
  * @param {string} sheetId - The sheet ID to check
- * @returns {Promise<boolean>} - True if sheet_id exists, false otherwise
+ * @returns {Promise<Object|null>} - Returns sheet data if exists, null otherwise
  */
 export async function checkSheetIdExists(sheetId) {
   try {
@@ -71,22 +71,31 @@ export async function checkSheetIdExists(sheetId) {
       throw new Error("SHEET_HISTORY environment variable is not set");
     }
 
-    // Fetch all sheet_ids from column C (sheet_id column)
+    // Fetch all data from SHEET_HISTORY
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: historySpreadsheetId,
-      range: "Sheet1!C:C", // Column C contains sheet_id
+      range: "Sheet1!A:H", // All columns: sheet_name, sheet_link, sheet_id, event_name, uploaded_by, uploaded_at, status, closed_at
     });
 
-    const sheetIds = response.data.values || [];
+    const rows = response.data.values || [];
     
     // Skip header row (index 0) and check if sheetId exists
-    for (let i = 1; i < sheetIds.length; i++) {
-      if (sheetIds[i][0] === sheetId) {
-        return true;
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][2] === sheetId) { // Column C (index 2) contains sheet_id
+        return {
+          sheet_name: rows[i][0],
+          sheet_link: rows[i][1],
+          sheet_id: rows[i][2],
+          event_name: rows[i][3],
+          uploaded_by: rows[i][4],
+          uploaded_at: rows[i][5],
+          status: rows[i][6],
+          closed_at: rows[i][7] || ""
+        };
       }
     }
     
-    return false;
+    return null;
   } catch (error) {
     throw new Error(`Failed to check sheet_id existence: ${error.message}`);
   }

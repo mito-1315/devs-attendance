@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Users, UserCheck, UserX, Save, UserPlus, Download, Copy, Check } from 'lucide-react';
 
 interface AttendancePageProps {
@@ -10,9 +10,10 @@ interface AttendancePageProps {
 interface Student {
   id: number;
   rollNumber: string;
-  name: string;
-  department: string;
+  name?: string;
+  department?: string;
   isPresent: boolean;
+  status: string;
   isOnSpot?: boolean;
 }
 
@@ -20,47 +21,103 @@ export function AttendancePage({ isDark, onBackToUpload, eventName }: Attendance
   const [searchQuery, setSearchQuery] = useState('');
   const [showCommitConfirm, setShowCommitConfirm] = useState(false);
   const [showAddNewModal, setShowAddNewModal] = useState(false);
-  const [nextId, setNextId] = useState(31); // Track next available ID
+  const [nextId, setNextId] = useState(1);
   const [copied, setCopied] = useState(false);
   const [newStudent, setNewStudent] = useState({
     name: '',
     rollNumber: '',
-    department: ''
+    department: '',
+    emailId: ''
   });
-  // Generate a unique session code once and keep it constant
   const [sessionCode] = useState(() => `#${Math.random().toString(36).substring(2, 8).toUpperCase()}`);
-  const [students, setStudents] = useState<Student[]>([
-    { id: 1, rollNumber: '2021001', name: 'John Doe', department: 'Computer Science', isPresent: false },
-    { id: 2, rollNumber: '2021002', name: 'Jane Smith', department: 'Mathematics', isPresent: false },
-    { id: 3, rollNumber: '2021003', name: 'Alice Johnson', department: 'Physics', isPresent: false },
-    { id: 4, rollNumber: '2021004', name: 'Bob Brown', department: 'Chemistry', isPresent: false },
-    { id: 5, rollNumber: '2021005', name: 'Charlie Davis', department: 'Biology', isPresent: false },
-    { id: 6, rollNumber: '2021006', name: 'Diana Evans', department: 'History', isPresent: false },
-    { id: 7, rollNumber: '2021007', name: 'Ethan Foster', department: 'Geography', isPresent: false },
-    { id: 8, rollNumber: '2021008', name: 'Fiona Green', department: 'Economics', isPresent: false },
-    { id: 9, rollNumber: '2021009', name: 'George Harris', department: 'Political Science', isPresent: false },
-    { id: 10, rollNumber: '2021010', name: 'Hannah Jackson', department: 'Sociology', isPresent: false },
-    { id: 11, rollNumber: '2021011', name: 'Ian King', department: 'Psychology', isPresent: false },
-    { id: 12, rollNumber: '2021012', name: 'Jenna Lee', department: 'Art History', isPresent: false },
-    { id: 13, rollNumber: '2021013', name: 'Kevin Martin', department: 'Music', isPresent: false },
-    { id: 14, rollNumber: '2021014', name: 'Lily Nelson', department: 'Theater', isPresent: false },
-    { id: 15, rollNumber: '2021015', name: 'Mason O\'Connor', department: 'Film Studies', isPresent: false },
-    { id: 16, rollNumber: '2021016', name: 'Nina Patel', department: 'Dance', isPresent: false },
-    { id: 17, rollNumber: '2021017', name: 'Oliver Quinn', department: 'Photography', isPresent: false },
-    { id: 18, rollNumber: '2021018', name: 'Penelope Reed', department: 'Graphic Design', isPresent: false },
-    { id: 19, rollNumber: '2021019', name: 'Quinn Smith', department: 'Illustration', isPresent: false },
-    { id: 20, rollNumber: '2021020', name: 'Rachel Taylor', department: 'Animation', isPresent: false },
-    { id: 21, rollNumber: '2021021', name: 'Samuel White', department: 'Game Design', isPresent: false },
-    { id: 22, rollNumber: '2021022', name: 'Tara Xu', department: 'Virtual Reality', isPresent: false },
-    { id: 23, rollNumber: '2021023', name: 'Uma Yoon', department: 'Augmented Reality', isPresent: false },
-    { id: 24, rollNumber: '2021024', name: 'Victor Zhang', department: 'Robotics', isPresent: false },
-    { id: 25, rollNumber: '2021025', name: 'Wendy Zhou', department: 'Cybersecurity', isPresent: false },
-    { id: 26, rollNumber: '2021026', name: 'Xander Yu', department: 'Data Science', isPresent: false },
-    { id: 27, rollNumber: '2021027', name: 'Yara Zane', department: 'Machine Learning', isPresent: false },
-    { id: 28, rollNumber: '2021028', name: 'Zane Wang', department: 'Artificial Intelligence', isPresent: false },
-    { id: 29, rollNumber: '2021029', name: 'Aaron Lee', department: 'Software Engineering', isPresent: false },
-    { id: 30, rollNumber: '2021030', name: 'Bella Chen', department: 'Network Security', isPresent: false },
-  ]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [registered, setRegistered] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [spreadsheetId, setSpreadsheetId] = useState('');
+
+  // Fetch attendance data on component mount
+  useEffect(() => {
+    const fetchAttendanceData = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        
+        // Get sheet_link from localStorage
+        const sheetLink = localStorage.getItem('currentSheetLink');
+        
+        if (!sheetLink) {
+          setError('No sheet link found. Please upload a sheet first.');
+          setLoading(false);
+          return;
+        }
+
+        // Extract spreadsheet ID from link
+        const idMatch = sheetLink.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+        if (!idMatch) {
+          setError('Invalid sheet link format');
+          setLoading(false);
+          return;
+        }
+
+        const extractedSpreadsheetId = idMatch[1];
+        setSpreadsheetId(extractedSpreadsheetId);
+
+        // STEP 1: Call /attendance endpoint to fetch and cache sheet information
+        console.log('Fetching and caching sheet information...');
+        const infoResponse = await fetch(
+          `http://localhost:3000/api/attendance?sheet_link=${encodeURIComponent(sheetLink)}`
+        );
+        
+        if (!infoResponse.ok) {
+          const errorData = await infoResponse.json();
+          throw new Error(errorData.message || 'Failed to fetch sheet information');
+        }
+
+        const infoData = await infoResponse.json();
+        console.log('Sheet information cached:', infoData.cached ? 'from cache' : 'freshly fetched');
+
+        // STEP 2: Call /display endpoint to get formatted data
+        console.log('Fetching display data...');
+        const displayResponse = await fetch(
+          `http://localhost:3000/api/attendance/display?spreadsheet_id=${extractedSpreadsheetId}`
+        );
+
+        if (!displayResponse.ok) {
+          const errorData = await displayResponse.json();
+          throw new Error(errorData.message || 'Failed to fetch display data');
+        }
+
+        const displayData = await displayResponse.json();
+        console.log('Display data received:', displayData);
+        
+        if (displayData.success) {
+          setRegistered(displayData.data.registered);
+          // Transform backend data to match Student interface
+          const transformedStudents = displayData.data.students.map((student: any) => ({
+            id: student.id,
+            rollNumber: student.rollNumber,
+            status: student.status,
+            isPresent: student.status.toLowerCase() === 'present',
+            isOnSpot: false
+          }));
+          setStudents(transformedStudents);
+          setNextId(transformedStudents.length + 1);
+          console.log('Attendance data loaded successfully');
+        } else {
+          throw new Error('Failed to parse display data');
+        }
+
+        setLoading(false);
+      } catch (err: any) {
+        console.error('Error fetching attendance data:', err);
+        setError(err.message || 'Failed to load attendance data');
+        setLoading(false);
+      }
+    };
+
+    fetchAttendanceData();
+  }, []);
 
   const handleCopyCode = () => {
     // Fallback method for copying text (compatible with all browsers)
@@ -85,19 +142,103 @@ export function AttendancePage({ isDark, onBackToUpload, eventName }: Attendance
   };
 
   const toggleAttendance = (id: number) => {
-    setStudents(students.map(student => 
-      student.id === id ? { ...student, isPresent: !student.isPresent } : student
-    ));
+    setStudents(students.map(student => {
+      if (student.id === id) {
+        const newIsPresent = !student.isPresent;
+        return { 
+          ...student, 
+          isPresent: newIsPresent,
+          status: newIsPresent ? 'Present' : 'Absent'
+        };
+      }
+      return student;
+    }));
   };
 
   const handleCommit = () => {
     setShowCommitConfirm(true);
   };
 
-  const handleConfirmCommit = () => {
-    // Remove students marked as present
-    setStudents(students.filter(student => !student.isPresent));
-    setShowCommitConfirm(false);
+  const handleConfirmCommit = async () => {
+    try {
+      // Get all students marked as present
+      const presentStudents = students.filter(student => student.isPresent);
+      const rollNumbers = presentStudents.map(student => student.rollNumber);
+
+      if (rollNumbers.length === 0) {
+        setShowCommitConfirm(false);
+        return;
+      }
+
+      // Call backend to commit attendance
+      const response = await fetch('http://localhost:3000/api/attendance/commit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          spreadsheet_id: spreadsheetId,
+          roll_numbers: rollNumbers,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to commit attendance');
+      }
+
+      console.log('Commit successful:', data);
+      
+      // Refresh data from sheets
+      const sheetLink = localStorage.getItem('currentSheetLink');
+      if (sheetLink) {
+        // Step 1: Refresh cache by calling /attendance
+        console.log('Refreshing cache after commit...');
+        const infoResponse = await fetch(
+          `http://localhost:3000/api/attendance?sheet_link=${encodeURIComponent(sheetLink)}`
+        );
+        
+        if (!infoResponse.ok) {
+          throw new Error('Failed to refresh cache');
+        }
+
+        await infoResponse.json();
+
+        // Step 2: Get fresh display data
+        console.log('Fetching fresh display data...');
+        const displayResponse = await fetch(
+          `http://localhost:3000/api/attendance/display?spreadsheet_id=${spreadsheetId}`
+        );
+
+        if (!displayResponse.ok) {
+          throw new Error('Failed to fetch fresh display data');
+        }
+
+        const displayData = await displayResponse.json();
+        
+        if (displayData.success) {
+          setRegistered(displayData.data.registered);
+          // Transform backend data to match Student interface
+          const transformedStudents = displayData.data.students.map((student: any) => ({
+            id: student.id,
+            rollNumber: student.rollNumber,
+            status: student.status,
+            isPresent: student.status.toLowerCase() === 'present',
+            isOnSpot: false
+          }));
+          setStudents(transformedStudents);
+          setNextId(transformedStudents.length + 1);
+          console.log('Data refreshed successfully after commit');
+        }
+      }
+      
+      setShowCommitConfirm(false);
+    } catch (err: any) {
+      console.error('Error committing attendance:', err);
+      alert(`Failed to commit attendance: ${err.message}`);
+      setShowCommitConfirm(false);
+    }
   };
 
   const handleCancelCommit = () => {
@@ -111,6 +252,63 @@ export function AttendancePage({ isDark, onBackToUpload, eventName }: Attendance
   const totalPresent = students.filter(s => s.isPresent).length;
   const totalAbsent = students.length - totalPresent;
   const totalOnSpot = students.filter(s => s.isOnSpot).length;
+
+  if (loading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center" style={{ backgroundColor: "#0a1128" }}>
+        <div className="text-center">
+          <div
+            className="w-16 h-16 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4"
+            style={{
+              borderColor: "#b91372",
+              borderTopColor: "transparent",
+            }}
+          />
+          <p style={{ color: "#f5f0ff", fontSize: "18px", fontWeight: "500" }}>
+            Loading attendance data...
+          </p>
+          <p style={{ color: "#b91372", fontSize: "14px", marginTop: "8px" }}>
+            Fetching sheet information from cache
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center" style={{ backgroundColor: "#0a1128" }}>
+        <div className="text-center max-w-md px-4">
+          <div
+            className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center"
+            style={{ backgroundColor: "rgba(248, 113, 113, 0.1)" }}
+          >
+            <span style={{ color: "#f87171", fontSize: "32px" }}>⚠</span>
+          </div>
+          <p style={{ color: "#f87171", fontSize: "18px", fontWeight: "500", marginBottom: "8px" }}>
+            Error Loading Attendance
+          </p>
+          <p style={{ color: "#f5f0ff", fontSize: "14px", opacity: 0.8 }}>
+            {error}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              marginTop: "20px",
+              padding: "10px 20px",
+              background: "linear-gradient(135deg, #4a1a4a 0%, #b91372 100%)",
+              color: "#ffffff",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen w-full flex items-center justify-center px-4 py-20 md:py-8 overflow-hidden relative">
@@ -190,7 +388,7 @@ export function AttendancePage({ isDark, onBackToUpload, eventName }: Attendance
               <Users className="w-4 h-4 md:w-5 md:h-5" style={{ color: isDark ? '#b91372' : '#4a1a4a' }} />
               <p className="text-xs opacity-60" style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}>Registered</p>
             </div>
-            <p className="text-xl md:text-2xl font-semibold" style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}>{students.length}</p>
+            <p className="text-xl md:text-2xl font-semibold" style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}>{registered}</p>
           </div>
           <div 
             className="p-2 md:p-3"
@@ -335,12 +533,12 @@ export function AttendancePage({ isDark, onBackToUpload, eventName }: Attendance
                 <div className="flex items-center justify-center text-sm md:text-base px-2 py-3 md:py-4">
                   <span
                     style={{
-                      color: student.isPresent 
+                      color: student.status.toLowerCase() === 'present'
                         ? (isDark ? '#4ade80' : '#22c55e')
                         : (isDark ? '#f87171' : '#ef4444')
                     }}
                   >
-                    {student.isPresent ? 'Present' : 'Absent'}
+                    {student.status}
                   </span>
                 </div>
               </div>
@@ -539,6 +737,28 @@ export function AttendancePage({ isDark, onBackToUpload, eventName }: Attendance
                     }}
                   />
                 </div>
+                <div>
+                  <label 
+                    htmlFor="emailId" 
+                    className="block mb-2 text-sm md:text-base opacity-75"
+                    style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
+                  >
+                    Email ID
+                  </label>
+                  <input
+                    id="emailId"
+                    type="email"
+                    value={newStudent.emailId}
+                    onChange={(e) => setNewStudent({ ...newStudent, emailId: e.target.value })}
+                    placeholder="Enter email ID..."
+                    className="w-full pl-3 md:pl-4 pr-3 md:pr-4 py-2.5 md:py-3 transition-all focus:outline-none focus:ring-2 text-sm md:text-base"
+                    style={{
+                      backgroundColor: isDark ? 'rgba(74, 26, 74, 0.2)' : 'rgba(185, 19, 114, 0.1)',
+                      color: isDark ? '#f5f0ff' : '#0a1128',
+                      border: isDark ? '1px solid rgba(74, 26, 74, 0.3)' : '1px solid rgba(185, 19, 114, 0.3)'
+                    }}
+                  />
+                </div>
               </div>
               <div className="flex gap-3 justify-end mt-4">
                 <button
@@ -553,11 +773,46 @@ export function AttendancePage({ isDark, onBackToUpload, eventName }: Attendance
                   Cancel
                 </button>
                 <button
-                  onClick={() => {
-                    setStudents([...students, { ...newStudent, id: nextId, isPresent: true, isOnSpot: true }]);
-                    setNextId(nextId + 1); // Increment next available ID
-                    setShowAddNewModal(false);
-                    setNewStudent({ name: '', rollNumber: '', department: '' });
+                  onClick={async () => {
+                    try {
+                      if (!newStudent.name || !newStudent.rollNumber || !newStudent.emailId || !newStudent.department) {
+                        alert('Please fill in all fields');
+                        return;
+                      }
+
+                      // Call backend to add student to sheet
+                      const response = await fetch('http://localhost:3000/api/attendance/addonspot', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          spreadsheet_id: spreadsheetId,
+                          name: newStudent.name,
+                          roll_number: newStudent.rollNumber,
+                          mail_id: newStudent.emailId,
+                          department: newStudent.department,
+                        }),
+                      });
+
+                      const data = await response.json();
+
+                      if (!response.ok) {
+                        throw new Error(data.message || 'Failed to add student on-spot');
+                      }
+
+                      console.log('Student added on-spot:', data);
+                      
+                      // Student is already committed (commit=TRUE) so won't appear in display
+                      // Just close modal and reset form
+                      setShowAddNewModal(false);
+                      setNewStudent({ name: '', rollNumber: '', department: '', emailId: '' });
+                      
+                      alert('Student added successfully! They are marked as present and committed.');
+                    } catch (err: any) {
+                      console.error('Error adding student on-spot:', err);
+                      alert(`Failed to add student: ${err.message}`);
+                    }
                   }}
                   className="px-4 py-2 md:px-6 md:py-2.5 transition-all hover:scale-105 hover:shadow-lg text-sm md:text-base"
                   style={{

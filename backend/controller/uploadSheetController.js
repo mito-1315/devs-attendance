@@ -1,6 +1,9 @@
 import { fetchHeaders, fetchData, fetchSpreadsheetName, addToSheetHistory, checkSheetIdExists } from "../storage/uploadSheetStorage.js";
 
 function getSpreadsheetId(url) {
+  if (!url || typeof url !== 'string') {
+    return null;
+  }
   const match = url.match(/spreadsheets\/d\/([^/]+)/);
   return match ? match[1] : null;
 }
@@ -33,21 +36,24 @@ function isValidCheckbox(value) {
 }
 
 export async function validateSheet(req, res) {
-  const { sheetlink } = req.body;
+  // Support both 'sheetlink' and 'sheet_link' for backwards compatibility
+  const sheetlink = req.body.sheetlink || req.body.sheet_link;
+  if (!sheetlink) {
+    return res.status(400).json({ success: false, message: "Missing sheet link in request body (expected 'sheetlink' or 'sheet_link')" });
+  }
   const spreadsheetId = getSpreadsheetId(sheetlink);
-  
   if (!spreadsheetId) {
     return res.status(400).json({ success: false, message: "Invalid Google Sheet URL" });
   }
 
   try {
     // STEP 1: Check if sheet_id already exists in SHEET_HISTORY
-    const sheetExists = await checkSheetIdExists(spreadsheetId);
-    if (sheetExists) {
+    const existingSheet = await checkSheetIdExists(spreadsheetId);
+    if (existingSheet) {
       return res.status(409).json({ 
         success: false, 
         message: "This sheet has already been uploaded to the system",
-        sheet_id: spreadsheetId
+        data: existingSheet
       });
     }
 
@@ -185,39 +191,30 @@ export async function validateSheet(req, res) {
 }
 
 export async function uploadSheet(req, res) {
-  const { sheet_link, event_name, uploaded_by } = req.body;
-  
+  // Support both 'sheetlink' and 'sheet_link' for backwards compatibility
+  const sheet_link = req.body.sheet_link || req.body.sheetlink;
+  const { event_name, uploaded_by } = req.body;
   // Validate required fields
   if (!sheet_link || !event_name || !uploaded_by) {
     return res.status(400).json({ 
       success: false, 
-      message: "Missing required fields: sheet_link, event_name, and uploaded_by are required" 
+      message: "Missing required fields: sheet_link (or sheetlink), event_name, and uploaded_by are required" 
     });
   }
-
   const spreadsheetId = getSpreadsheetId(sheet_link);
-  
   if (!spreadsheetId) {
     return res.status(400).json({ 
       success: false, 
       message: "Invalid Google Sheet URL" 
     });
   }
-
   // Check if sheet_id already exists in SHEET_HISTORY
-  const sheetExists = await checkSheetIdExists(spreadsheetId);
-  if (sheetExists) {
+  const existingSheet = await checkSheetIdExists(spreadsheetId);
+  if (existingSheet) {
     return res.status(409).json({ 
       success: false, 
       message: "This sheet has already been uploaded to the system",
-      sheet_id: spreadsheetId
-    });
-  }
-  
-  if (!spreadsheetId) {
-    return res.status(400).json({ 
-      success: false, 
-      message: "Invalid Google Sheet URL" 
+      data: existingSheet
     });
   }
 

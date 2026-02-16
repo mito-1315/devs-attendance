@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Menu,
   Upload,
@@ -9,35 +10,30 @@ import {
   User,
   UserPlus,
   LogOut,
-  Info
+  Info,
+  Loader2
 } from "lucide-react";
-import { logout } from "../services/auth";
+import { logout, getCachedUser } from "../services/auth";
 
 interface UploadPageProps {
   isDark: boolean;
-  onNavigateToAttendance: (eventName: string) => void;
-  onNavigateToHistory: () => void;
-  onNavigateToSessions: () => void;
-  onNavigateToProfile: () => void;
-  onNavigateToCreateUser: () => void;
-  onLogout?: () => void; // Add optional onLogout prop
+  onLogout?: () => void;
 }
 
 export function UploadPage({
   isDark,
-  onNavigateToAttendance,
-  onNavigateToHistory,
-  onNavigateToSessions,
-  onNavigateToProfile,
-  onNavigateToCreateUser,
   onLogout,
 }: UploadPageProps) {
+  const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [showEventNameModal, setShowEventNameModal] = useState(false);
   const [eventName, setEventName] = useState("");
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [showReadMeModal, setShowReadMeModal] = useState(false);
   const [sheetLink, setSheetLink] = useState("");
+  const [isValidating, setIsValidating] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const linkFilled = sheetLink.trim().length > 0;
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -73,31 +69,95 @@ export function UploadPage({
   const handleMenuItemClick = (item: string) => {
     setMenuOpen(false);
     if (item === "History") {
-      onNavigateToHistory();
+      navigate("/history");
     } else if (item === "Sessions") {
-      onNavigateToSessions();
+      navigate("/session");
     } else if (item === "Profile") {
-      onNavigateToProfile();
+      navigate("/profile");
     } else if (item === "Create User") {
-      onNavigateToCreateUser();
+      navigate("/createuser");
     } else if (item === "Logout") {
       logout();
-      if (onLogout) onLogout();
+      navigate("/login");
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (linkFilled) {
-      console.log("Submitting sheet link:", sheetLink);
-      setShowEventNameModal(true);
+    if (!linkFilled) return;
+
+    setIsValidating(true);
+    setErrorMessage("");
+
+    try {
+      const response = await fetch("http://localhost:3000/api/upload/validate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ sheetlink: sheetLink }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Validation successful, show event name modal
+        setShowEventNameModal(true);
+      } else if (response.status === 409 && data.data) {
+        // Sheet already exists, store link and navigate to attendance page
+        localStorage.setItem('currentSheetLink', sheetLink);
+        navigate("/attendance", { state: { eventName: data.data.event_name } });
+      } else {
+        // Validation failed, show error message
+        setErrorMessage(data.message || "Sheet validation failed");
+      }
+    } catch (error) {
+      console.error("Validation error:", error);
+      setErrorMessage("Network error. Please check your connection.");
+    } finally {
+      setIsValidating(false);
     }
   };
 
-  const handleEventNameSubmit = () => {
-    if (eventName) {
-      console.log("Event Name:", eventName);
-      onNavigateToAttendance(eventName);
+  const handleEventNameSubmit = async () => {
+    if (!eventName) return;
+
+    setIsUploading(true);
+    setErrorMessage("");
+
+    try {
+      const user = getCachedUser();
+      const username = user?.username || "unknown";
+
+      const response = await fetch("http://localhost:3000/api/upload/uploadSheet", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sheet_link: sheetLink,
+          event_name: eventName,
+          uploaded_by: username,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Upload successful, store link and navigate to attendance page
+        localStorage.setItem('currentSheetLink', sheetLink);
+        navigate("/attendance", { state: { eventName } });
+      } else if (response.status === 409 && data.data) {
+        // Sheet already exists, store link and navigate to attendance page
+        localStorage.setItem('currentSheetLink', sheetLink);
+        navigate("/attendance", { state: { eventName: data.data.event_name } });
+      }
+    } catch (error) {
+      console.error("Upload error:", error);
+      setErrorMessage("Network error. Please check your connection.");
+      setShowEventNameModal(false);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -288,14 +348,15 @@ export function UploadPage({
               className="w-20 h-20 flex items-center justify-center"
               style={{
                 background: isDark
-                  ? "linear-gradient(135deg, #4a1a4a 0%, #b91372 100%)"
-                  : "linear-gradient(135deg, #b91372 0%, #4a1a4a 100%)",
+                  ? "radial-gradient(circle, #b91372 0%, #4a1a4a 100%)"
+                  : "radial-gradient(circle, #4a1a4a 0%, #b91372 100%)",
               }}
             >
-              <FileSpreadsheet className="w-10 h-10 text-white" />
+              <FileSpreadsheet className="w-10 h-10" style={{ color: isDark ? "#f5f0ff" : "#0a1128" }} />
             </div>
           </div>
 
+          {/* Title */}
           <div className="text-center mb-8">
             <h1
               className="text-3xl md:text-4xl mb-2"
@@ -333,34 +394,60 @@ export function UploadPage({
                   className="block text-sm mb-2"
                   style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
                 >
-                  Enter Sheet Link
+                  Google Sheets Link
                 </label>
                 <input
                   type="url"
                   value={sheetLink}
                   onChange={(e) => setSheetLink(e.target.value)}
-                  placeholder="https://docs.google.com/spreadsheets/..."
-                  className="w-full px-4 py-3 transition-all focus:outline-none focus:ring-2 text-sm md:text-base"
+                  placeholder="https://docs.google.com/spreadsheets/d/..."
+                  className="w-full px-3 md:px-4 py-2.5 md:py-3 transition-all focus:outline-none focus:ring-2 text-sm md:text-base"
                   style={{
-                    backgroundColor: isDark ? 'rgba(74, 26, 74, 0.2)' : 'rgba(185, 19, 114, 0.1)',
-                    color: isDark ? '#f5f0ff' : '#0a1128',
-                    border: isDark ? '1px solid rgba(74, 26, 74, 0.3)' : '1px solid rgba(185, 19, 114, 0.3)'
+                    backgroundColor: isDark
+                      ? "rgba(74, 26, 74, 0.2)"
+                      : "rgba(185, 19, 114, 0.1)",
+                    color: isDark ? "#f5f0ff" : "#0a1128",
+                    borderRadius: "6px",
+                    border: isDark
+                      ? "1px solid rgba(74, 26, 74, 0.3)"
+                      : "1px solid rgba(185, 19, 114, 0.3)",
                   }}
                 />
               </div>
             </div>
 
+            {/* Error Message */}
+            {errorMessage && (
+              <div
+                className="p-3 text-sm"
+                style={{
+                  backgroundColor: isDark ? 'rgba(185, 19, 114, 0.2)' : 'rgba(185, 19, 114, 0.1)',
+                  color: isDark ? '#ff6b9d' : '#b91372',
+                  border: `1px solid ${isDark ? 'rgba(185, 19, 114, 0.4)' : 'rgba(185, 19, 114, 0.3)'}`
+                }}
+              >
+                {errorMessage}
+              </div>
+            )}
+
             <button
               type="submit"
-              disabled={!linkFilled}
-              className="w-full py-4 transition-all hover:scale-105 hover:shadow-lg text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              disabled={!linkFilled || isValidating}
+              className="w-full py-4 transition-all hover:scale-105 hover:shadow-lg text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
               style={{
                 background: isDark 
                   ? 'linear-gradient(135deg, #4a1a4a 0%, #b91372 100%)'
                   : 'linear-gradient(135deg, #b91372 0%, #4a1a4a 100%)'
               }}
             >
-              Submit Sheet
+              {isValidating ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Validating...</span>
+                </>
+              ) : (
+                <span>Submit Sheet</span>
+              )}
             </button>
           </form>
         </div>

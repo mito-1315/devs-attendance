@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Moon, Sun, ArrowLeft } from "lucide-react";
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import { LoginPage } from "./components/LoginPage";
 import { UploadPage } from "./components/UploadPage";
 import { AttendancePage } from "./components/AttendancePage";
@@ -10,90 +11,88 @@ import { ProfilePage } from "./components/ProfilePage";
 import { CreateUserPage } from "./components/CreateUserPage";
 import { getAuthState, logout } from "./services/auth";
 
-export default function App() {
-  const [isDark, setIsDark] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(true);
-  const [showAttendance, setShowAttendance] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
-  const [showSessions, setShowSessions] = useState(false);
-  const [showEventStats, setShowEventStats] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
-  const [showCreateUser, setShowCreateUser] = useState(false);
-  const [showBackConfirm, setShowBackConfirm] = useState(false);
-  const [eventName, setEventName] = useState("");
+// Protected Route Component
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const authState = getAuthState();
+  
+  if (!authState.isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return <>{children}</>;
+}
 
-  // Check for cached authentication on mount
+// Layout Component with Back Button
+function Layout({ children }: { children: React.ReactNode }) {
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showBackConfirm, setShowBackConfirm] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+
   useEffect(() => {
     const authState = getAuthState();
-    if (authState.isAuthenticated) {
-      setIsLoggedIn(true);
-    }
+    setIsLoggedIn(authState.isAuthenticated);
     setIsInitializing(false);
   }, []);
 
-  const handleLogin = () => {
-    setIsLoggedIn(true);
+  const isLoginPage = location.pathname === "/login";
+  const isUploadPage = location.pathname === "/upload";
+  const isAttendancePage = location.pathname === "/attendance";
+  const isHistoryPage = location.pathname === "/history";
+  const isSessionsPage = location.pathname === "/session";
+  const isEventStatsPage = location.pathname === "/eventstats";
+  const isProfilePage = location.pathname === "/profile";
+  const isCreateUserPage = location.pathname === "/createuser";
+  
+  const showBackButton = !isLoginPage && !isUploadPage;
+
+  const clearAttendanceCache = async () => {
+    try {
+      const response = await fetch('http://localhost:3000/api/attendance/cache', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}), // Clear all cache
+      });
+      
+      if (!response.ok) {
+        console.error('Failed to clear cache');
+      }
+    } catch (error) {
+      console.error('Error clearing cache:', error);
+    }
   };
 
-  const handleLogout = () => {
-    logout();
-    setIsLoggedIn(false);
-    setShowAttendance(false);
-    setShowHistory(false);
-    setShowSessions(false);
-    setShowEventStats(false);
-    setShowProfile(false);
-    setShowCreateUser(false);
+  const handleBackToUpload = async () => {
+    // Clear cache when leaving attendance page
+    if (isAttendancePage) {
+      await clearAttendanceCache();
+    }
     setShowBackConfirm(false);
-  };
-
-  const handleNavigateToAttendance = (name: string) => {
-    setEventName(name);
-    setShowAttendance(true);
-    setShowSessions(false);
-  };
-
-  const handleNavigateToHistory = () => {
-    setShowHistory(true);
-  };
-
-  const handleNavigateToSessions = () => {
-    setShowSessions(true);
-    setShowAttendance(false);
-  };
-
-  const handleNavigateToProfile = () => {
-    setShowProfile(true);
-  };
-
-  const handleNavigateToCreateUser = () => {
-    setShowCreateUser(true);
-  };
-
-  const handleNavigateToEventStats = (name: string) => {
-    setEventName(name);
-    setShowEventStats(true);
-    setShowHistory(false);
+    navigate("/upload");
   };
 
   const handleBackToHistory = () => {
-    setShowEventStats(false);
-    setShowHistory(true);
-  };
-
-  const handleBackToUpload = () => {
-    setShowAttendance(false);
-    setShowHistory(false);
-    setShowSessions(false);
-    setShowEventStats(false);
-    setShowProfile(false);
-    setShowCreateUser(false);
     setShowBackConfirm(false);
+    navigate("/history");
   };
 
   const handleBackClick = () => {
-    setShowBackConfirm(true);
+    if (isAttendancePage) {
+      setShowBackConfirm(true);
+      return;
+    }
+
+    if (isEventStatsPage) {
+      handleBackToHistory();
+      return;
+    }
+
+    if (isHistoryPage || isSessionsPage || isProfilePage || isCreateUserPage) {
+      handleBackToUpload();
+    }
   };
 
   // Show loading screen while checking authentication
@@ -101,17 +100,17 @@ export default function App() {
     return (
       <div
         className="min-h-screen w-full flex items-center justify-center"
-        style={{ backgroundColor: isDark ? "#0a1128" : "#f5f0ff" }}
+        style={{ backgroundColor: "#0a1128" }}
       >
         <div className="text-center">
           <div
             className="w-16 h-16 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4"
             style={{
-              borderColor: isDark ? "#b91372" : "#4a1a4a",
+              borderColor: "#b91372",
               borderTopColor: "transparent",
             }}
           />
-          <p style={{ color: isDark ? "#f5f0ff" : "#0a1128" }}>Loading...</p>
+          <p style={{ color: "#f5f0ff" }}>Loading...</p>
         </div>
       </div>
     );
@@ -120,34 +119,15 @@ export default function App() {
   return (
     <div
       className="min-h-screen w-full transition-colors"
-      style={{ backgroundColor: isDark ? "#0a1128" : "#f5f0ff" }}
+      style={{ backgroundColor: "#0a1128" }}
     >
-      {/* Theme Toggle Button */}
-      <div className="fixed top-16 right-4 z-50">
-        <button
-          onClick={() => setIsDark(!isDark)}
-          className="flex items-center justify-center gap-2 w-12 h-12 md:w-auto md:h-auto md:px-4 md:py-2 transition-all hover:scale-105"
-          style={{
-            backgroundColor: isDark ? "#4a1a4a" : "#b91372",
-            color: isDark ? "#f5f0ff" : "#FFFFFF",
-          }}
-        >
-          {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          <span className="hidden md:inline">
-            {isDark ? "Light" : "Dark"} Mode
-          </span>
-        </button>
-      </div>
-
-      {showAttendance && isLoggedIn && (
+      {showBackButton && isLoggedIn && (
         <div className="fixed top-16 left-4 z-50">
           <button
             onClick={handleBackClick}
             className="flex items-center justify-center gap-2 w-12 h-12 md:w-auto md:h-auto md:px-4 md:py-2 transition-all hover:scale-105"
             style={{
-              background: isDark
-                ? "linear-gradient(135deg, #4a1a4a 0%, #b91372 100%)"
-                : "linear-gradient(135deg, #b91372 0%, #4a1a4a 100%)",
+              background: "linear-gradient(135deg, #4a1a4a 0%, #b91372 100%)",
               color: "#ffffff",
             }}
           >
@@ -157,198 +137,40 @@ export default function App() {
         </div>
       )}
 
-      {showHistory && isLoggedIn && (
-        <div className="fixed top-16 left-4 z-50">
-          <button
-            onClick={handleBackToUpload}
-            className="flex items-center justify-center gap-2 w-12 h-12 md:w-auto md:h-auto md:px-4 md:py-2 transition-all hover:scale-105"
-            style={{
-              background: isDark
-                ? "linear-gradient(135deg, #4a1a4a 0%, #b91372 100%)"
-                : "linear-gradient(135deg, #b91372 0%, #4a1a4a 100%)",
-              color: "#ffffff",
-            }}
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span className="hidden md:inline">Back</span>
-          </button>
-        </div>
-      )}
+      {/* Render children (pages) */}
+      {children}
 
-      {showSessions && isLoggedIn && (
-        <div className="fixed top-16 left-4 z-50">
-          <button
-            onClick={handleBackToUpload}
-            className="flex items-center justify-center gap-2 w-12 h-12 md:w-auto md:h-auto md:px-4 md:py-2 transition-all hover:scale-105"
-            style={{
-              background: isDark
-                ? "linear-gradient(135deg, #4a1a4a 0%, #b91372 100%)"
-                : "linear-gradient(135deg, #b91372 0%, #4a1a4a 100%)",
-              color: "#ffffff",
-            }}
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span className="hidden md:inline">Back</span>
-          </button>
-        </div>
-      )}
-
-      {showEventStats && isLoggedIn && (
-        <div className="fixed top-16 left-4 z-50">
-          <button
-            onClick={handleBackToHistory}
-            className="flex items-center justify-center gap-2 w-12 h-12 md:w-auto md:h-auto md:px-4 md:py-2 transition-all hover:scale-105"
-            style={{
-              background: isDark
-                ? "linear-gradient(135deg, #4a1a4a 0%, #b91372 100%)"
-                : "linear-gradient(135deg, #b91372 0%, #4a1a4a 100%)",
-              color: "#ffffff",
-            }}
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span className="hidden md:inline">Back</span>
-          </button>
-        </div>
-      )}
-
-      {showProfile && isLoggedIn && (
-        <div className="fixed top-16 left-4 z-50">
-          <button
-            onClick={handleBackToUpload}
-            className="flex items-center justify-center gap-2 w-12 h-12 md:w-auto md:h-auto md:px-4 md:py-2 transition-all hover:scale-105"
-            style={{
-              background: isDark
-                ? "linear-gradient(135deg, #4a1a4a 0%, #b91372 100%)"
-                : "linear-gradient(135deg, #b91372 0%, #4a1a4a 100%)",
-              color: "#ffffff",
-            }}
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span className="hidden md:inline">Back</span>
-          </button>
-        </div>
-      )}
-
-      {showCreateUser && isLoggedIn && (
-        <div className="fixed top-16 left-4 z-50">
-          <button
-            onClick={handleBackToUpload}
-            className="flex items-center justify-center gap-2 w-12 h-12 md:w-auto md:h-auto md:px-4 md:py-2 transition-all hover:scale-105"
-            style={{
-              background: isDark
-                ? "linear-gradient(135deg, #4a1a4a 0%, #b91372 100%)"
-                : "linear-gradient(135deg, #b91372 0%, #4a1a4a 100%)",
-              color: "#ffffff",
-            }}
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span className="hidden md:inline">Back</span>
-          </button>
-        </div>
-      )}
-
-      {!isLoggedIn ? (
-        <LoginPage isDark={isDark} onLogin={handleLogin} />
-      ) : showAttendance ? (
-        <AttendancePage
-          isDark={isDark}
-          onBackToUpload={handleBackToUpload}
-          eventName={eventName}
-        />
-      ) : showEventStats ? (
-        <EventStatsBasics
-          isDark={isDark}
-          onBackToHistory={handleBackToHistory}
-          eventName={eventName}
-        />
-      ) : showHistory ? (
-        <HistoryPage
-          isDark={isDark}
-          onBackToUpload={handleBackToUpload}
-          onNavigateToEventStats={handleNavigateToEventStats}
-        />
-      ) : showSessions ? (
-        <SessionPage
-          isDark={isDark}
-          onNavigateToAttendance={handleNavigateToAttendance}
-        />
-      ) : showProfile ? (
-        <ProfilePage isDark={isDark} onBackToUpload={handleBackToUpload} />
-      ) : showCreateUser ? (
-        <CreateUserPage isDark={isDark} />
-      ) : (
-        <UploadPage
-          isDark={isDark}
-          onNavigateToAttendance={handleNavigateToAttendance}
-          onNavigateToHistory={handleNavigateToHistory}
-          onNavigateToSessions={handleNavigateToSessions}
-          onNavigateToProfile={handleNavigateToProfile}
-          onNavigateToCreateUser={handleNavigateToCreateUser}
-          onLogout={handleLogout}
-        />
-      )}
-
-      {/* Back Confirmation Dialog */}
       {showBackConfirm && (
-        <div
-          className="fixed inset-0 flex items-center justify-center z-[100]"
-          style={{
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            backdropFilter: "blur(4px)",
-          }}
-        >
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div
-            className="shadow-2xl p-6 md:p-8 max-w-md mx-4"
-            style={{
-              backgroundColor: isDark
-                ? "rgba(10, 17, 40, 0.95)"
-                : "rgba(255, 255, 255, 0.95)",
-              border: `2px solid ${
-                isDark ? "rgba(74, 26, 74, 0.5)" : "rgba(185, 19, 114, 0.3)"
-              }`,
-            }}
+            className="p-6 rounded-lg shadow-lg"
+            style={{ backgroundColor: "#1a1a2e" }}
           >
-            <h2
-              className="text-xl md:text-2xl mb-3"
-              style={{ color: isDark ? "#f5f0ff" : "#0a1128" }}
-            >
-              Confirm Navigation
-            </h2>
-            <p
-              className="text-sm md:text-base opacity-75 mb-6"
-              style={{ color: isDark ? "#f5f0ff" : "#0a1128" }}
-            >
-              All the attendance marked will be destroyed. Make sure to commit
-              before you go back.
+            <p style={{ color: "#f5f0ff" }} className="mb-4">
+              Are you sure you want to go back?
             </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setShowBackConfirm(false)}
-                className="px-4 py-2 md:px-6 md:py-2.5 transition-all hover:scale-105 hover:shadow-lg text-sm md:text-base"
-                style={{
-                  backgroundColor: isDark
-                    ? "rgba(74, 26, 74, 0.3)"
-                    : "rgba(185, 19, 114, 0.15)",
-                  color: isDark ? "#f5f0ff" : "#0a1128",
-                  border: `1px solid ${
-                    isDark ? "rgba(74, 26, 74, 0.5)" : "rgba(185, 19, 114, 0.3)"
-                  }`,
-                }}
-              >
-                Cancel
-              </button>
+            <div className="flex gap-4">
               <button
                 onClick={handleBackToUpload}
                 className="px-4 py-2 md:px-6 md:py-2.5 transition-all hover:scale-105 hover:shadow-lg text-sm md:text-base"
                 style={{
-                  background: isDark
-                    ? "linear-gradient(135deg, #4a1a4a 0%, #b91372 100%)"
-                    : "linear-gradient(135deg, #b91372 0%, #4a1a4a 100%)",
+                  background: "linear-gradient(135deg, #4a1a4a 0%, #b91372 100%)",
                   color: "#ffffff",
                   border: "none",
                 }}
               >
                 Confirm
+              </button>
+              <button
+                onClick={() => setShowBackConfirm(false)}
+                className="px-4 py-2 md:px-6 md:py-2.5 transition-all hover:scale-105 hover:shadow-lg text-sm md:text-base"
+                style={{
+                  backgroundColor: "#4a1a4a",
+                  color: "#f5f0ff",
+                  border: "none",
+                }}
+              >
+                Cancel
               </button>
             </div>
           </div>
@@ -356,4 +178,173 @@ export default function App() {
       )}
     </div>
   );
+}
+
+// Main App Component with Router
+export default function App() {
+  return (
+    <Router>
+      <AppContent />
+    </Router>
+  );
+}
+
+// App Content with Router functionality
+function AppContent() {
+  const navigate = useNavigate();
+
+  const handleLogin = () => {
+    navigate("/upload");
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
+  return (
+    <Routes>
+      <Route path="/login" element={
+        <Layout>
+          <LoginPage isDark={true} onLogin={handleLogin} />
+        </Layout>
+      } />
+      
+      <Route path="/upload" element={
+        <ProtectedRoute>
+          <Layout>
+            <UploadPageWrapper onLogout={handleLogout} />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/attendance" element={
+        <ProtectedRoute>
+          <Layout>
+            <AttendancePageWrapper />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/history" element={
+        <ProtectedRoute>
+          <Layout>
+            <HistoryPageWrapper />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/session" element={
+        <ProtectedRoute>
+          <Layout>
+            <SessionPageWrapper />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/eventstats" element={
+        <ProtectedRoute>
+          <Layout>
+            <EventStatsPageWrapper />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/profile" element={
+        <ProtectedRoute>
+          <Layout>
+            <ProfilePageWrapper />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/createuser" element={
+        <ProtectedRoute>
+          <Layout>
+            <CreateUserPageWrapper />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/" element={<Navigate to="/login" replace />} />
+    </Routes>
+  );
+}
+
+// Wrapper components to handle navigation
+function UploadPageWrapper({ onLogout }: { onLogout: () => void }) {
+  const navigate = useNavigate();
+  
+  return (
+    <UploadPage
+      isDark={true}
+      onLogout={onLogout}
+    />
+  );
+}
+
+function AttendancePageWrapper() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const eventName = (location.state as { eventName?: string })?.eventName || "";
+  
+  return (
+    <AttendancePage
+      isDark={true}
+      onBackToUpload={() => navigate("/upload")}
+      eventName={eventName}
+    />
+  );
+}
+
+function HistoryPageWrapper() {
+  const navigate = useNavigate();
+  
+  return (
+    <HistoryPage
+      isDark={true}
+      onBackToUpload={() => navigate("/upload")}
+      onNavigateToEventStats={(eventName) => navigate("/eventstats", { state: { eventName } })}
+    />
+  );
+}
+
+function SessionPageWrapper() {
+  const navigate = useNavigate();
+  
+  return (
+    <SessionPage
+      isDark={true}
+      onNavigateToAttendance={(eventName) => navigate("/attendance", { state: { eventName } })}
+    />
+  );
+}
+
+function EventStatsPageWrapper() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const eventName = (location.state as { eventName?: string })?.eventName || "";
+  
+  return (
+    <EventStatsBasics
+      isDark={true}
+      onBackToHistory={() => navigate("/history")}
+      eventName={eventName}
+    />
+  );
+}
+
+function ProfilePageWrapper() {
+  const navigate = useNavigate();
+  
+  return (
+    <ProfilePage
+      isDark={true}
+      onBackToUpload={() => navigate("/upload")}
+    />
+  );
+}
+
+function CreateUserPageWrapper() {
+  return <CreateUserPage isDark={true} />
 }

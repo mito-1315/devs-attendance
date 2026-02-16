@@ -1,0 +1,272 @@
+import { fetchHeaders, fetchData, fetchSpreadsheetName, addToSheetHistory, checkSheetIdExists } from "../storage/uploadSheetStorage.js";
+
+function getSpreadsheetId(url) {
+  const match = url.match(/spreadsheets\/d\/([^/]+)/);
+  return match ? match[1] : null;
+}
+
+/**
+ * Validate email format
+ */
+function isValidEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+/**
+ * Validate integer format
+ */
+function isValidInteger(value) {
+  return /^\d+$/.test(value) && !isNaN(parseInt(value));
+}
+
+/**
+ * Validate checkbox format (TRUE/FALSE or boolean)
+ */
+function isValidCheckbox(value) {
+  if (typeof value === 'boolean') return true;
+  if (typeof value === 'string') {
+    const upper = value.toUpperCase();
+    return upper === 'TRUE' || upper === 'FALSE' || upper === 'YES' || upper === 'NO';
+  }
+  return false;
+}
+
+export async function validateSheet(req, res) {
+  const { sheetlink } = req.body;
+  const spreadsheetId = getSpreadsheetId(sheetlink);
+  
+  if (!spreadsheetId) {
+    return res.status(400).json({ success: false, message: "Invalid Google Sheet URL" });
+  }
+
+  try {
+    // STEP 1: Check if sheet_id already exists in SHEET_HISTORY
+    const sheetExists = await checkSheetIdExists(spreadsheetId);
+    if (sheetExists) {
+      return res.status(409).json({ 
+        success: false, 
+        message: "This sheet has already been uploaded to the system",
+        sheet_id: spreadsheetId
+      });
+    }
+
+    // STEP 2: Check if the sheet is accessible
+    let headers;
+    try {3
+      headers = await fetchHeaders(spreadsheetId);
+    } catch (error) {
+      return res.status(403).json({ 
+        success: false, 
+        message: "Sheet is not accessible",
+        error: error.message 
+      });
+    }
+
+    // STEP 2: Validate headers
+    const expectedHeaders = ["name", "roll_number", "mail_id", "department", "attendance"];
+    
+    // Trim all headers to remove whitespace
+    const trimmedHeaders = headers.map(h => h ? h.trim() : '');
+    
+    // Filter out empty headers
+    const nonEmptyHeaders = trimmedHeaders.filter(h => h !== '');
+    
+    if (nonEmptyHeaders.length !== expectedHeaders.length) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Header error, check the headers",
+        expected: expectedHeaders,
+        received: nonEmptyHeaders,
+        error: `Expected ${expectedHeaders.length} headers, but got ${nonEmptyHeaders.length}`
+      });
+    }
+
+    for (let i = 0; i < expectedHeaders.length; i++) {
+      if (nonEmptyHeaders[i] !== expectedHeaders[i]) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Header error, check the headers",
+          expected: expectedHeaders,
+          received: nonEmptyHeaders,
+          error: `Expected '${expectedHeaders[i]}' at position ${i + 1}, but got '${nonEmptyHeaders[i]}'`
+        });
+      }
+    }
+
+    // STEP 3: Validate data types
+    const data = await fetchData(spreadsheetId);
+    const errors = [];
+    let validRowCount = 0;
+
+    data.forEach((row, rowIndex) => {
+      // Skip completely empty rows
+      if (!row || row.length === 0 || row.every(cell => !cell || cell.toString().trim() === '')) {
+        return;
+      }
+
+      validRowCount++;
+      const rowNumber = rowIndex + 2; // +2 because row 1 is header and array is 0-indexed
+      
+      // Validate name (column 0) - String (non-empty)
+      if (!row[0] || typeof row[0] !== 'string' || row[0].trim() === '') {
+        errors.push({
+          row: rowNumber,
+          column: "name",
+          error: "Name must be a non-empty string",
+          value: row[0]
+        });
+      }
+
+      // Validate roll_number (column 1) - Integer
+      if (!row[1] || !isValidInteger(row[1])) {
+        errors.push({
+          row: rowNumber,
+          column: "roll_number",
+          error: "Roll number must be a valid integer",
+          value: row[1]
+        });
+      }
+
+      // Validate mail_id (column 2) - Email
+      if (!row[2] || !isValidEmail(row[2])) {
+        errors.push({
+          row: rowNumber,
+          column: "mail_id",
+          error: "Mail ID must be a valid email address",
+          value: row[2]
+        });
+      }
+
+      // Validate department (column 3) - String (non-empty)
+      if (!row[3] || typeof row[3] !== 'string' || row[3].trim() === '') {
+        errors.push({
+          row: rowNumber,
+          column: "department",
+          error: "Department must be a non-empty string",
+          value: row[3]
+        });
+      }
+
+      // Validate attendance (column 4) - Checkbox (TRUE/FALSE)
+      if (row[4] === undefined || row[4] === null || !isValidCheckbox(row[4])) {
+        errors.push({
+          row: rowNumber,
+          column: "attendance",
+          error: "Attendance must be a valid checkbox value (TRUE/FALSE, YES/NO, or boolean)",
+          value: row[4]
+        });
+      }
+    });
+
+    // If there are validation errors, return them
+    if (errors.length > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Data validation failed",
+        errors: errors
+      });
+    }
+
+    // All validations passed
+    return res.status(200).json({ 
+      success: true, 
+      message: "Sheet validation successful",
+      rowsValidated: validRowCount
+    });
+
+  } catch (error) {
+    return res.status(500).json({ 
+      success: false, 
+      message: "Error validating sheet",
+      error: error.message 
+    });
+  }
+}
+
+export async function uploadSheet(req, res) {
+  const { sheet_link, event_name, uploaded_by } = req.body;
+  
+  // Validate required fields
+  if (!sheet_link || !event_name || !uploaded_by) {
+    return res.status(400).json({ 
+      success: false, 
+      message: "Missing required fields: sheet_link, event_name, and uploaded_by are required" 
+    });
+  }
+
+  const spreadsheetId = getSpreadsheetId(sheet_link);
+  
+  if (!spreadsheetId) {
+    return res.status(400).json({ 
+      success: false, 
+      message: "Invalid Google Sheet URL" 
+    });
+  }
+
+  // Check if sheet_id already exists in SHEET_HISTORY
+  const sheetExists = await checkSheetIdExists(spreadsheetId);
+  if (sheetExists) {
+    return res.status(409).json({ 
+      success: false, 
+      message: "This sheet has already been uploaded to the system",
+      sheet_id: spreadsheetId
+    });
+  }
+  
+  if (!spreadsheetId) {
+    return res.status(400).json({ 
+      success: false, 
+      message: "Invalid Google Sheet URL" 
+    });
+  }
+
+  try {
+    // Fetch the sheet name
+    let sheetName;
+    try {
+      sheetName = await fetchSpreadsheetName(spreadsheetId);
+    } catch (error) {
+      return res.status(403).json({ 
+        success: false, 
+        message: "Sheet is not accessible",
+        error: error.message 
+      });
+    }
+
+    // Prepare history data
+    const historyData = {
+      sheet_name: sheetName,
+      sheet_link: sheet_link,
+      sheet_id: spreadsheetId,
+      event_name: event_name,
+      uploaded_by: uploaded_by,
+      uploaded_at: new Date().toISOString(), // Current timestamp in ISO format
+      status: "active",
+      closed_at: "" // Leave empty
+    };
+
+    // Add to SHEET_HISTORY
+    await addToSheetHistory(historyData);
+
+    return res.status(200).json({ 
+      success: true, 
+      message: "Sheet uploaded to history successfully",
+      data: {
+        sheet_name: sheetName,
+        sheet_id: spreadsheetId,
+        event_name: event_name,
+        uploaded_by: uploaded_by,
+        uploaded_at: historyData.uploaded_at,
+        status: "active"
+      }
+    });
+
+  } catch (error) {
+    return res.status(500).json({ 
+      success: false, 
+      message: "Error uploading sheet to history",
+      error: error.message 
+    });
+  }
+}

@@ -8,7 +8,8 @@ import {
   Calendar,
   User,
   UserPlus,
-  LogOut
+  LogOut,
+  Info
 } from "lucide-react";
 import { logout } from "../services/auth";
 
@@ -31,12 +32,13 @@ export function UploadPage({
   onNavigateToCreateUser,
   onLogout,
 }: UploadPageProps) {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
   const [showEventNameModal, setShowEventNameModal] = useState(false);
   const [eventName, setEventName] = useState("");
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const [showReadMeModal, setShowReadMeModal] = useState(false);
+  const [sheetLink, setSheetLink] = useState("");
+  const linkFilled = sheetLink.trim().length > 0;
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -84,33 +86,10 @@ export function UploadPage({
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setSelectedFile(e.dataTransfer.files[0]);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedFile) {
-      console.log("Submitting file:", selectedFile.name);
+    if (linkFilled) {
+      console.log("Submitting sheet link:", sheetLink);
       setShowEventNameModal(true);
     }
   };
@@ -322,120 +301,66 @@ export function UploadPage({
               className="text-3xl md:text-4xl mb-2"
               style={{ color: isDark ? "#f5f0ff" : "#0a1128" }}
             >
-              Upload Excel File
+              Submit Attendance Sheet
             </h1>
             <p
               className="text-sm opacity-60"
               style={{ color: isDark ? "#f5f0ff" : "#0a1128" }}
             >
-              Select or drag and drop your Excel file
+              Enter your Google Sheets link below
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Drag and Drop Area */}
-            <div
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              className={`border-2 border-dashed p-8 md:p-12 text-center transition-all ${
-                isDragging ? "scale-105" : ""
-              }`}
-              style={{
-                borderColor: isDragging
-                  ? "#b91372"
-                  : isDark
-                  ? "rgba(74, 26, 74, 0.5)"
-                  : "rgba(185, 19, 114, 0.3)",
-                backgroundColor: isDragging
-                  ? isDark
-                    ? "rgba(185, 19, 114, 0.1)"
-                    : "rgba(185, 19, 114, 0.05)"
-                  : isDark
-                  ? "rgba(74, 26, 74, 0.1)"
-                  : "rgba(185, 19, 114, 0.02)",
-              }}
-            >
-              {selectedFile ? (
-                <div className="space-y-4">
-                  <CheckCircle
-                    className="w-16 h-16 mx-auto"
-                    style={{ color: "#b91372" }}
-                  />
-                  <div>
-                    <p
-                      className="text-lg mb-1"
-                      style={{ color: isDark ? "#f5f0ff" : "#0a1128" }}
-                    >
-                      {selectedFile.name}
-                    </p>
-                    <p
-                      className="text-sm opacity-60"
-                      style={{ color: isDark ? "#f5f0ff" : "#0a1128" }}
-                    >
-                      {(selectedFile.size / 1024).toFixed(2)} KB
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedFile(null)}
-                    className="text-sm opacity-60 hover:opacity-100 transition-opacity"
-                    style={{ color: isDark ? "#b91372" : "#4a1a4a" }}
-                  >
-                    Remove file
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <Upload
-                    className="w-16 h-16 mx-auto opacity-50"
-                    style={{ color: isDark ? "#f5f0ff" : "#0a1128" }}
-                  />
-                  <div>
-                    <label htmlFor="file-upload">
-                      <span
-                        className="cursor-pointer hover:underline"
-                        style={{ color: isDark ? "#b91372" : "#4a1a4a" }}
-                      >
-                        Click to upload
-                      </span>
-                      <span
-                        className="opacity-60"
-                        style={{ color: isDark ? "#f5f0ff" : "#0a1128" }}
-                      >
-                        {" "}
-                        or drag and drop
-                      </span>
-                    </label>
-                    <p
-                      className="text-sm opacity-50 mt-2"
-                      style={{ color: isDark ? "#f5f0ff" : "#0a1128" }}
-                    >
-                      Excel files only (.xlsx, .xls)
-                    </p>
-                  </div>
-                  <input
-                    id="file-upload"
-                    type="file"
-                    accept=".xlsx,.xls"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                </div>
-              )}
+            {/* Read Me Button and Sheet Link Input */}
+            <div className="space-y-4">
+              <button
+                type="button"
+                onClick={() => setShowReadMeModal(true)}
+                className="w-full py-3 px-4 flex items-center justify-center gap-2 transition-all hover:scale-105"
+                style={{
+                  backgroundColor: isDark ? 'rgba(74, 26, 74, 0.3)' : 'rgba(185, 19, 114, 0.15)',
+                  color: isDark ? '#f5f0ff' : '#0a1128',
+                  border: `1px solid ${isDark ? 'rgba(74, 26, 74, 0.5)' : 'rgba(185, 19, 114, 0.3)'}`
+                }}
+              >
+                <Info className="w-5 h-5" style={{ color: isDark ? '#b91372' : '#4a1a4a' }} />
+                <span>Read Me</span>
+              </button>
+
+              <div>
+                <label 
+                  className="block text-sm mb-2"
+                  style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
+                >
+                  Enter Sheet Link
+                </label>
+                <input
+                  type="url"
+                  value={sheetLink}
+                  onChange={(e) => setSheetLink(e.target.value)}
+                  placeholder="https://docs.google.com/spreadsheets/..."
+                  className="w-full px-4 py-3 transition-all focus:outline-none focus:ring-2 text-sm md:text-base"
+                  style={{
+                    backgroundColor: isDark ? 'rgba(74, 26, 74, 0.2)' : 'rgba(185, 19, 114, 0.1)',
+                    color: isDark ? '#f5f0ff' : '#0a1128',
+                    border: isDark ? '1px solid rgba(74, 26, 74, 0.3)' : '1px solid rgba(185, 19, 114, 0.3)'
+                  }}
+                />
+              </div>
             </div>
 
             <button
               type="submit"
-              disabled={!selectedFile}
+              disabled={!linkFilled}
               className="w-full py-4 transition-all hover:scale-105 hover:shadow-lg text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               style={{
-                background: isDark
-                  ? "linear-gradient(135deg, #4a1a4a 0%, #b91372 100%)"
-                  : "linear-gradient(135deg, #b91372 0%, #4a1a4a 100%)",
+                background: isDark 
+                  ? 'linear-gradient(135deg, #4a1a4a 0%, #b91372 100%)'
+                  : 'linear-gradient(135deg, #b91372 0%, #4a1a4a 100%)'
               }}
             >
-              Submit File
+              Submit Sheet
             </button>
           </form>
         </div>
@@ -514,6 +439,126 @@ export function UploadPage({
                 }}
               >
                 Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Read Me Modal */}
+      {showReadMeModal && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-[100]"
+          style={{
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            backdropFilter: "blur(4px)",
+          }}
+        >
+          <div 
+            className="shadow-2xl p-6 md:p-8 max-w-2xl mx-4 w-full max-h-[80vh] overflow-y-auto"
+            style={{
+              backgroundColor: isDark ? 'rgba(10, 17, 40, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+              border: `2px solid ${isDark ? 'rgba(74, 26, 74, 0.5)' : 'rgba(185, 19, 114, 0.3)'}`  
+            }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 
+                className="text-xl md:text-2xl"
+                style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
+              >
+                Instructions
+              </h2>
+              <button
+                onClick={() => setShowReadMeModal(false)}
+                className="text-2xl opacity-60 hover:opacity-100 transition-opacity"
+                style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div 
+              className="space-y-4 text-sm md:text-base"
+              style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
+            >
+              <div>
+                <h3 className="font-semibold mb-2" style={{ color: isDark ? '#b91372' : '#4a1a4a' }}>
+                  Spreadsheet Format Requirements
+                </h3>
+                <p className="opacity-80 mb-2">
+                  The attendance file must be in spreadsheet format (Google Sheets or Excel).
+                </p>
+                <p className="opacity-80 mb-2">
+                  Ensure the spreadsheet contains the following columns in the exact order:
+                </p>
+                <ul className="list-decimal list-inside space-y-1 opacity-80 ml-4">
+                  <li><strong>name</strong></li>
+                  <li><strong>roll_number</strong></li>
+                  <li><strong>mail</strong></li>
+                  <li><strong>department</strong></li>
+                  <li><strong>attendance</strong> (must be a checkbox field)</li>
+                </ul>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-2" style={{ color: isDark ? '#b91372' : '#4a1a4a' }}>
+                  Grant Editor Access
+                </h3>
+                <p className="opacity-80 mb-2">
+                  Add the following email address as an Editor to the spreadsheet:
+                </p>
+                <div className="flex items-center gap-2 p-3 mt-2" style={{
+                  backgroundColor: isDark ? 'rgba(74, 26, 74, 0.2)' : 'rgba(185, 19, 114, 0.1)',
+                  border: `1px solid ${isDark ? 'rgba(74, 26, 74, 0.3)' : 'rgba(185, 19, 114, 0.3)'}`
+                }}>
+                  <code className="flex-1 text-xs md:text-sm break-all" style={{ color: isDark ? '#b91372' : '#4a1a4a' }}>
+                    aintnomito@devs-attendance-487205.iam.gserviceaccount.com
+                  </code>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText('aintnomito@devs-attendance-487205.iam.gserviceaccount.com');
+                      // Optional: Add a toast notification here
+                      console.log('Email copied to clipboard');
+                    }}
+                    className="px-3 py-1 text-xs transition-all hover:scale-105"
+                    style={{
+                      backgroundColor: isDark ? 'rgba(185, 19, 114, 0.3)' : 'rgba(185, 19, 114, 0.2)',
+                      color: isDark ? '#f5f0ff' : '#0a1128',
+                      border: `1px solid ${isDark ? 'rgba(185, 19, 114, 0.5)' : 'rgba(185, 19, 114, 0.4)'}`
+                    }}
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-2" style={{ color: isDark ? '#b91372' : '#4a1a4a' }}>
+                  Submit the Spreadsheet Link
+                </h3>
+                <p className="opacity-80">
+                  After completing the above steps, paste the spreadsheet link into the input box provided below.
+                </p>
+              </div>
+
+              <div className="pt-4">
+                <p className="opacity-60 text-xs md:text-sm">
+                  For any issues or questions, please contact the system administrator.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={() => setShowReadMeModal(false)}
+                className="px-6 py-2.5 transition-all hover:scale-105 hover:shadow-lg text-white"
+                style={{
+                  background: isDark 
+                    ? 'linear-gradient(135deg, #4a1a4a 0%, #b91372 100%)'
+                    : 'linear-gradient(135deg, #b91372 0%, #4a1a4a 100%)'
+                }}
+              >
+                Got it!
               </button>
             </div>
           </div>

@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 
 // Load credentials
 const auth = new google.auth.GoogleAuth({
-  keyFile: path.join(__dirname, "..", "devs-attendance-487205-e88066b2a86e.json"),
+  keyFile: path.join(__dirname, "..", "devs-attendance-487205-dfedc47aedb1.json"),
   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
 });
 

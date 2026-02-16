@@ -7,9 +7,10 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load credentials
+// Load credentials using GOOGLE_APPLICATION_CREDENTIALS env variable
+const keyFile = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 const auth = new google.auth.GoogleAuth({
-  keyFile: path.join(__dirname, "..", "devs-attendance-487205-dfedc47aedb1.json"),
+  keyFile,
   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
 });
 

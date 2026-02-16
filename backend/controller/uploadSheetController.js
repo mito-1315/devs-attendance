@@ -70,7 +70,8 @@ export async function validateSheet(req, res) {
     }
 
     // STEP 2: Validate headers
-    const expectedHeaders = ["name", "roll_number", "mail_id", "department", "attendance"];
+    const requiredHeaders = ["name", "roll_number", "mail_id", "department", "attendance"];
+    const optionalHeaders = ["commit"];
     
     // Trim all headers to remove whitespace
     const trimmedHeaders = headers.map(h => h ? h.trim() : '');
@@ -78,24 +79,49 @@ export async function validateSheet(req, res) {
     // Filter out empty headers
     const nonEmptyHeaders = trimmedHeaders.filter(h => h !== '');
     
-    if (nonEmptyHeaders.length !== expectedHeaders.length) {
+    // Check minimum required headers (5) and maximum with optional (6)
+    if (nonEmptyHeaders.length < requiredHeaders.length) {
       return res.status(400).json({ 
         success: false, 
         message: "Header error, check the headers",
-        expected: expectedHeaders,
+        expected: requiredHeaders,
         received: nonEmptyHeaders,
-        error: `Expected ${expectedHeaders.length} headers, but got ${nonEmptyHeaders.length}`
+        error: `Expected at least ${requiredHeaders.length} headers, but got ${nonEmptyHeaders.length}`
       });
     }
 
-    for (let i = 0; i < expectedHeaders.length; i++) {
-      if (nonEmptyHeaders[i] !== expectedHeaders[i]) {
+    if (nonEmptyHeaders.length > requiredHeaders.length + optionalHeaders.length) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Header error, check the headers",
+        expected: [...requiredHeaders, ...optionalHeaders],
+        received: nonEmptyHeaders,
+        error: `Expected at most ${requiredHeaders.length + optionalHeaders.length} headers, but got ${nonEmptyHeaders.length}`
+      });
+    }
+
+    // Validate required headers
+    for (let i = 0; i < requiredHeaders.length; i++) {
+      if (nonEmptyHeaders[i] !== requiredHeaders[i]) {
         return res.status(400).json({ 
           success: false, 
           message: "Header error, check the headers",
-          expected: expectedHeaders,
+          expected: requiredHeaders,
           received: nonEmptyHeaders,
-          error: `Expected '${expectedHeaders[i]}' at position ${i + 1}, but got '${nonEmptyHeaders[i]}'`
+          error: `Expected '${requiredHeaders[i]}' at position ${i + 1}, but got '${nonEmptyHeaders[i]}'`
+        });
+      }
+    }
+
+    // Validate optional commit header if present
+    if (nonEmptyHeaders.length === 6) {
+      if (nonEmptyHeaders[5] !== 'commit') {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Header error, check the headers",
+          expected: [...requiredHeaders, 'commit'],
+          received: nonEmptyHeaders,
+          error: `Expected 'commit' at position 6, but got '${nonEmptyHeaders[5]}'`
         });
       }
     }
@@ -154,14 +180,27 @@ export async function validateSheet(req, res) {
         });
       }
 
-      // Validate attendance (column 4) - Checkbox (TRUE/FALSE)
+      // Validate attendance (column 4) - TRUE/FALSE (can be string or boolean)
       if (row[4] === undefined || row[4] === null || !isValidCheckbox(row[4])) {
         errors.push({
           row: rowNumber,
           column: "attendance",
-          error: "Attendance must be a valid checkbox value (TRUE/FALSE, YES/NO, or boolean)",
+          error: "Attendance must be TRUE or FALSE (or YES/NO, or boolean)",
           value: row[4]
         });
+      }
+
+      // Validate commit (column 5) - Optional checkbox (TRUE/FALSE)
+      // Only validate if the column exists in the sheet (6 headers total)
+      if (nonEmptyHeaders.length === 6) {
+        if (row[5] !== undefined && row[5] !== null && row[5] !== '' && !isValidCheckbox(row[5])) {
+          errors.push({
+            row: rowNumber,
+            column: "commit",
+            error: "Commit must be TRUE or FALSE (or YES/NO, or boolean) if provided",
+            value: row[5]
+          });
+        }
       }
     });
 

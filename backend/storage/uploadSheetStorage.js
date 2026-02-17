@@ -102,6 +102,55 @@ export async function checkSheetIdExists(sheetId) {
 }
 
 /**
+ * Add a column with default values to the sheet
+ * @param {string} spreadsheetId - The ID of the Google Sheet
+ * @param {string} columnName - Name of the column to add
+ * @param {string} defaultValue - Default value for all rows
+ * @param {number} dataRowCount - Number of data rows (excluding header)
+ * @returns {Promise<void>}
+ */
+export async function addColumnToSheet(spreadsheetId, columnName, defaultValue, dataRowCount) {
+  try {
+    // First, get current headers to find next available column
+    const headersResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: "Sheet1!A1:Z1",
+    });
+    
+    const currentHeaders = headersResponse.data.values ? headersResponse.data.values[0] : [];
+    const nextColumnIndex = currentHeaders.length;
+    const columnLetter = String.fromCharCode(65 + nextColumnIndex); // A=65, B=66, etc.
+    
+    // Add header
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `Sheet1!${columnLetter}1`,
+      valueInputOption: "RAW",
+      resource: {
+        values: [[columnName]]
+      }
+    });
+    
+    // Add default values for all data rows
+    if (dataRowCount > 0) {
+      const defaultValues = Array(dataRowCount).fill([defaultValue]);
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `Sheet1!${columnLetter}2:${columnLetter}${dataRowCount + 1}`,
+        valueInputOption: "RAW",
+        resource: {
+          values: defaultValues
+        }
+      });
+    }
+    
+    console.log(`Added column '${columnName}' with default value '${defaultValue}' to ${dataRowCount} rows`);
+  } catch (error) {
+    throw new Error(`Failed to add column to sheet: ${error.message}`);
+  }
+}
+
+/**
  * Add a row to SHEET_HISTORY spreadsheet
  * @param {Object} historyData - Data to add to history
  * @param {string} historyData.sheet_name - Name of the sheet

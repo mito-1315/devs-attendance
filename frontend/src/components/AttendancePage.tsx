@@ -32,6 +32,8 @@ export function AttendancePage({ isDark, onBackToUpload, eventName }: Attendance
   const [sessionCode] = useState(() => `#${Math.random().toString(36).substring(2, 8).toUpperCase()}`);
   const [students, setStudents] = useState<Student[]>([]);
   const [registered, setRegistered] = useState(0);
+  const [presentCount, setPresentCount] = useState(0); // Present count from sheet
+  const [onSpotCount, setOnSpotCount] = useState(0); // On-spot count from sheet
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [spreadsheetId, setSpreadsheetId] = useState('');
@@ -93,6 +95,8 @@ export function AttendancePage({ isDark, onBackToUpload, eventName }: Attendance
         
         if (displayData.success) {
           setRegistered(displayData.data.registered);
+          setPresentCount(displayData.data.presentCount || 0);
+          setOnSpotCount(displayData.data.onSpotCount || 0);
           // Transform backend data to match Student interface
           const transformedStudents = displayData.data.students.map((student: any) => ({
             id: student.id,
@@ -219,6 +223,8 @@ export function AttendancePage({ isDark, onBackToUpload, eventName }: Attendance
         
         if (displayData.success) {
           setRegistered(displayData.data.registered);
+          setPresentCount(displayData.data.presentCount || 0);
+          setOnSpotCount(displayData.data.onSpotCount || 0);
           // Transform backend data to match Student interface
           const transformedStudents = displayData.data.students.map((student: any) => ({
             id: student.id,
@@ -245,13 +251,52 @@ export function AttendancePage({ isDark, onBackToUpload, eventName }: Attendance
     setShowCommitConfirm(false);
   };
 
+  const handleExport = async () => {
+    try {
+      if (!spreadsheetId) {
+        alert('No spreadsheet ID found. Please ensure data is loaded.');
+        return;
+      }
+
+      // Call export endpoint
+      const response = await fetch(
+        `http://localhost:3000/api/attendance/export?spreadsheet_id=${spreadsheetId}`
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to export attendance');
+      }
+
+      // Get the blob from response
+      const blob = await response.blob();
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `attendance_export_${Date.now()}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      console.log('Export successful');
+    } catch (err: any) {
+      console.error('Error exporting attendance:', err);
+      alert(`Failed to export attendance: ${err.message}`);
+    }
+  };
+
   const filteredStudents = students.filter(student =>
     student.rollNumber.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const totalPresent = students.filter(s => s.isPresent).length;
-  const totalAbsent = students.length - totalPresent;
-  const totalOnSpot = students.filter(s => s.isOnSpot).length;
+  const totalPresent = presentCount; // Use present count from backend
+  const totalAbsent = students.length - students.filter(s => s.isPresent).length;
+  const totalOnSpot = onSpotCount; // Use on-spot count from backend
 
   if (loading) {
     return (
@@ -577,6 +622,7 @@ export function AttendancePage({ isDark, onBackToUpload, eventName }: Attendance
             <span>Add</span>
           </button>
           <button
+            onClick={handleExport}
             className="flex items-center justify-center gap-2 px-4 py-1.5 md:py-2 transition-all hover:scale-105 hover:shadow-lg text-sm md:text-base"
             style={{
               background: isDark 

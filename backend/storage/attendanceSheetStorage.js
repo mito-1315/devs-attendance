@@ -1,5 +1,7 @@
 import sheets from "../middleware/googlesheetsapi.js";
 import dotenv from "dotenv";
+import XLSX from 'xlsx';
+import archiver from 'archiver';
 
 dotenv.config();
 
@@ -239,8 +241,8 @@ export async function addStudentOnSpot(spreadsheetId, studentData) {
     const totalRows = dataResponse.data.values ? dataResponse.data.values.length : 1;
     const newRowNumber = totalRows + 1;
 
-    // Prepare the new row data: name, roll_number, mail_id, department, attendance=TRUE, commit=TRUE
-    const newRow = [name, roll_number, mail_id, department, true, true];
+    // Prepare the new row data: name, roll_number, mail_id, department, attendance=TRUE, commit=TRUE, type=ON-SPOT
+    const newRow = [name, roll_number, mail_id, department, true, true, "ON-SPOT"];
 
     // Append the new row
     await sheets.spreadsheets.values.append({
@@ -266,6 +268,135 @@ export async function addStudentOnSpot(spreadsheetId, studentData) {
   } catch (error) {
     throw new Error(`Failed to add student on-spot: ${error.message}`);
   }
+}
+
+/**
+ * Prepare export data from cached sheet data
+ * @param {Object} cachedData - Cached sheet data
+ * @returns {Promise<Object>} - Object containing present students and all students data
+ */
+export function prepareExportData(cachedData) {
+  const headers = cachedData.headers;
+  
+  // Find column indices
+  const nameIndex = headers.findIndex(h => h && h.toLowerCase() === 'name');
+  const rollNumberIndex = headers.findIndex(h => 
+    h && (h.toLowerCase() === 'roll_number' || h.toLowerCase().includes('roll'))
+  );
+  const mailIdIndex = headers.findIndex(h => 
+    h && (h.toLowerCase() === 'mail_id' || h.toLowerCase().includes('mail'))
+  );
+  const departmentIndex = headers.findIndex(h => h && h.toLowerCase() === 'department');
+  const attendanceIndex = headers.findIndex(h => 
+    h && (h.toLowerCase() === 'attendance' || h.toLowerCase() === 'status')
+  );
+  const typeIndex = headers.findIndex(h => h && h.toLowerCase() === 'type');
+
+  const allStudents = [];
+  const presentStudents = [];
+  let presentCount = 0;
+
+  cachedData.data.forEach((row) => {
+    // Skip empty rows
+    if (!row || row.length === 0) return;
+
+    const name = row[nameIndex] || '';
+    const rollNumber = row[rollNumberIndex] || '';
+    const mailId = row[mailIdIndex] || '';
+    const department = row[departmentIndex] || '';
+    const attendanceValue = row[attendanceIndex];
+    const type = typeIndex !== -1 ? (row[typeIndex] || 'REGISTERED') : 'REGISTERED';
+
+    // Determine if present
+    let isPresent = false;
+    if (typeof attendanceValue === 'boolean') {
+      isPresent = attendanceValue;
+    } else if (typeof attendanceValue === 'string') {
+      const upper = attendanceValue.toUpperCase();
+      isPresent = (upper === 'TRUE' || upper === 'YES');
+    }
+
+    const studentData = {
+      name,
+      roll_number: rollNumber,
+      mail_id: mailId,
+      department,
+      attendance: isPresent ? 'TRUE' : 'FALSE',
+      type
+    };
+
+    // Add to all students
+    allStudents.push(studentData);
+
+    // Add to present students if marked present
+    if (isPresent) {
+      presentStudents.push(studentData);
+      presentCount++;
+    }
+  });
+
+  return {
+    presentStudents,
+    allStudents,
+    presentCount
+  };
+}
+
+/**
+ * Create Excel workbook with student data
+ * @param {Array} data - Array of student objects
+ * @param {string} sheetName - Name of the sheet
+ * @returns {Buffer} - Excel file buffer
+ */
+export function createExcelFile(data, sheetName) {
+  // Create workbook
+  const workbook = XLSX.utils.book_new();
+  
+  // Convert data to worksheet
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  
+  // Add worksheet to workbook
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+  
+  // Generate buffer
+  const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+  
+  return buffer;
+}
+
+/**
+ * Create ZIP file with multiple Excel files
+ * @param {Object} files - Object with filename as key and buffer as value
+ * @returns {Promise<Buffer>} - ZIP file buffer
+ */
+export function createZipFile(files) {
+  return new Promise((resolve, reject) => {
+    const archive = archiver('zip', {
+      zlib: { level: 9 } // Compression level
+    });
+
+    const buffers = [];
+
+    archive.on('data', (chunk) => {
+      buffers.push(chunk);
+    });
+
+    archive.on('end', () => {
+      resolve(Buffer.concat(buffers));
+    });
+
+    archive.on('error', (err) => {
+      reject(err);
+    });
+
+    // Add files to archive
+    Object.keys(files).forEach((filename) => {
+      archive.append(files[filename], { name: filename });
+    });
+
+    // Finalize the archive
+    archive.finalize();
+  });
 }
 
 /**

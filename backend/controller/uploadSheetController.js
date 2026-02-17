@@ -1,4 +1,4 @@
-import { fetchHeaders, fetchData, fetchSpreadsheetName, addToSheetHistory, checkSheetIdExists } from "../storage/uploadSheetStorage.js";
+import { fetchHeaders, fetchData, fetchSpreadsheetName, addToSheetHistory, checkSheetIdExists, addColumnToSheet } from "../storage/uploadSheetStorage.js";
 
 function getSpreadsheetId(url) {
   if (!url || typeof url !== 'string') {
@@ -71,7 +71,7 @@ export async function validateSheet(req, res) {
 
     // STEP 2: Validate headers
     const requiredHeaders = ["name", "roll_number", "mail_id", "department", "attendance"];
-    const optionalHeaders = ["commit"];
+    const optionalHeaders = ["commit", "type"];
     
     // Trim all headers to remove whitespace
     const trimmedHeaders = headers.map(h => h ? h.trim() : '');
@@ -79,7 +79,7 @@ export async function validateSheet(req, res) {
     // Filter out empty headers
     const nonEmptyHeaders = trimmedHeaders.filter(h => h !== '');
     
-    // Check minimum required headers (5) and maximum with optional (6)
+    // Check minimum required headers (5) and maximum with optional (7)
     if (nonEmptyHeaders.length < requiredHeaders.length) {
       return res.status(400).json({ 
         success: false, 
@@ -113,18 +113,23 @@ export async function validateSheet(req, res) {
       }
     }
 
-    // Validate optional commit header if present
-    if (nonEmptyHeaders.length === 6) {
-      if (nonEmptyHeaders[5] !== 'commit') {
+    // Validate optional headers if present (can be in any order)
+    const optionalHeadersPresent = nonEmptyHeaders.slice(5);
+    for (const header of optionalHeadersPresent) {
+      if (!optionalHeaders.includes(header)) {
         return res.status(400).json({ 
           success: false, 
           message: "Header error, check the headers",
-          expected: [...requiredHeaders, 'commit'],
+          expected: [...requiredHeaders, ...optionalHeaders],
           received: nonEmptyHeaders,
-          error: `Expected 'commit' at position 6, but got '${nonEmptyHeaders[5]}'`
+          error: `Unexpected header '${header}'. Optional headers must be one of: ${optionalHeaders.join(', ')}`
         });
       }
     }
+
+    // Find column indices for optional columns
+    const commitIndex = nonEmptyHeaders.indexOf('commit');
+    const typeIndex = nonEmptyHeaders.indexOf('type');
 
     // STEP 3: Validate data types
     const data = await fetchData(spreadsheetId);
@@ -190,16 +195,31 @@ export async function validateSheet(req, res) {
         });
       }
 
-      // Validate commit (column 5) - Optional checkbox (TRUE/FALSE)
-      // Only validate if the column exists in the sheet (6 headers total)
-      if (nonEmptyHeaders.length === 6) {
-        if (row[5] !== undefined && row[5] !== null && row[5] !== '' && !isValidCheckbox(row[5])) {
+      // Validate commit - Optional checkbox (TRUE/FALSE)
+      if (commitIndex !== -1) {
+        if (row[commitIndex] !== undefined && row[commitIndex] !== null && row[commitIndex] !== '' && !isValidCheckbox(row[commitIndex])) {
           errors.push({
             row: rowNumber,
             column: "commit",
             error: "Commit must be TRUE or FALSE (or YES/NO, or boolean) if provided",
-            value: row[5]
+            value: row[commitIndex]
           });
+        }
+      }
+
+      // Validate type - Optional (ON-SPOT or REGISTERED)
+      if (typeIndex !== -1) {
+        const typeValue = row[typeIndex];
+        if (typeValue !== undefined && typeValue !== null && typeValue !== '') {
+          const typeUpper = typeValue.toString().toUpperCase();
+          if (typeUpper !== 'ON-SPOT' && typeUpper !== 'REGISTERED') {
+            errors.push({
+              row: rowNumber,
+              column: "type",
+              error: "Type must be 'ON-SPOT' or 'REGISTERED' if provided",
+              value: typeValue
+            });
+          }
         }
       }
     });
@@ -213,11 +233,18 @@ export async function validateSheet(req, res) {
       });
     }
 
+    // STEP 4: Check if 'type' column exists, if not add it with default 'REGISTERED'
+    if (typeIndex === -1) {
+      console.log("'type' column not found, adding it with default value 'REGISTERED'");
+      await addColumnToSheet(spreadsheetId, "type", "REGISTERED", validRowCount);
+    }
+
     // All validations passed
     return res.status(200).json({ 
       success: true, 
       message: "Sheet validation successful",
-      rowsValidated: validRowCount
+      rowsValidated: validRowCount,
+      typeColumnAdded: typeIndex === -1
     });
 
   } catch (error) {

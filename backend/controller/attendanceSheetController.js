@@ -1,4 +1,4 @@
-import { fetchDetails, ensureCommitColumn, updateCommitStatus, addStudentOnSpot } from '../storage/attendanceSheetStorage.js';
+import { fetchDetails, ensureCommitColumn, updateCommitStatus, addStudentOnSpot, prepareExportData, createExcelFile, createZipFile } from '../storage/attendanceSheetStorage.js';
 
 // In-memory cache for sheet details
 const sheetCache = new Map();
@@ -144,7 +144,7 @@ export async function display(req, res) {
 
         const cachedData = sheetCache.get(spreadsheet_id);
         
-        // Find the index of roll_number, attendance, and commit columns in headers
+        // Find the index of roll_number, attendance, commit, and type columns in headers
         const headers = cachedData.headers;
         const rollNumberIndex = headers.findIndex(h => 
             h && (h.toLowerCase() === 'roll_number' || h.toLowerCase().includes('roll'))
@@ -154,6 +154,9 @@ export async function display(req, res) {
         );
         const commitIndex = headers.findIndex(h => 
             h && h.toLowerCase() === 'commit'
+        );
+        const typeIndex = headers.findIndex(h => 
+            h && h.toLowerCase() === 'type'
         );
 
         if (rollNumberIndex === -1) {
@@ -202,12 +205,41 @@ export async function display(req, res) {
             };
         }).filter(student => student.rollNumber && !student.isCommitted); // Filter out empty roll numbers and committed students
 
+        // Calculate total present count from ALL rows (including committed students)
+        let totalPresentCount = 0;
+        cachedData.data.forEach((row) => {
+            const attendanceValue = statusIndex !== -1 ? (row[statusIndex] || 'FALSE') : 'FALSE';
+            let isPresent = false;
+            if (typeof attendanceValue === 'boolean') {
+                isPresent = attendanceValue;
+            } else if (typeof attendanceValue === 'string') {
+                const upper = attendanceValue.toUpperCase();
+                isPresent = (upper === 'TRUE' || upper === 'YES');
+            }
+            if (isPresent) {
+                totalPresentCount++;
+            }
+        });
+
+        // Calculate on-spot count from ALL rows with type='ON-SPOT'
+        let onSpotCount = 0;
+        if (typeIndex !== -1) {
+            cachedData.data.forEach((row) => {
+                const typeValue = row[typeIndex] || '';
+                if (typeof typeValue === 'string' && typeValue.toUpperCase() === 'ON-SPOT') {
+                    onSpotCount++;
+                }
+            });
+        }
+
         return res.status(200).json({
             success: true,
             message: "Display data retrieved successfully",
             data: {
                 registered: cachedData.totalRows,
-                students: students
+                students: students,
+                presentCount: totalPresentCount,
+                onSpotCount: onSpotCount
             }
         });
 
@@ -323,6 +355,69 @@ export async function addOnSpot(req, res) {
         return res.status(500).json({
             success: false,
             message: "Failed to add student on-spot",
+            error: error.message
+        });
+    }
+}
+
+/**
+ * Export attendance data as ZIP containing 2 Excel sheets
+ * @route GET /api/attendance/export
+ * @param {string} spreadsheet_id - Spreadsheet ID (from query params)
+ */
+export async function exportAttendance(req, res) {
+    try {
+        const { spreadsheet_id } = req.query;
+
+        if (!spreadsheet_id) {
+            return res.status(400).json({
+                success: false,
+                message: "Spreadsheet ID is required"
+            });
+        }
+
+        // Fetch fresh data from Google Sheets
+        console.log('Fetching fresh data for export...');
+        const sheetDetails = await fetchDetails(spreadsheet_id);
+
+        // Replenish cache with fresh data
+        sheetCache.set(spreadsheet_id, sheetDetails);
+        console.log('Cache replenished with fresh data');
+        
+        // Prepare export data
+        const { presentStudents, allStudents, presentCount } = prepareExportData(sheetDetails);
+
+        if (allStudents.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "No student data available to export"
+            });
+        }
+
+        console.log(`Exporting ${presentCount} present students out of ${allStudents.length} total students`);
+
+        // Create Excel files
+        const presentStudentsBuffer = createExcelFile(presentStudents, 'Present Students');
+        const allStudentsBuffer = createExcelFile(allStudents, 'All Students');
+
+        // Create ZIP file
+        const zipBuffer = await createZipFile({
+            'present_students.xlsx': presentStudentsBuffer,
+            'all_students.xlsx': allStudentsBuffer
+        });
+
+        // Set response headers for file download
+        res.setHeader('Content-Type', 'application/zip');
+        res.setHeader('Content-Disposition', `attachment; filename="attendance_export_${Date.now()}.zip"`);
+        res.setHeader('Content-Length', zipBuffer.length);
+
+        return res.send(zipBuffer);
+
+    } catch (error) {
+        console.error("Error exporting attendance:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Failed to export attendance",
             error: error.message
         });
     }

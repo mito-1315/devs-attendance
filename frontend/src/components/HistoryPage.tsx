@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, FileSpreadsheet, CheckCircle, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface HistoryPageProps {
@@ -8,95 +8,62 @@ interface HistoryPageProps {
 }
 
 interface HistoryRecord {
-  id: string;
-  eventName: string;
-  date: string;
-  time: string;
-  exportStatus: 'Completed' | 'Incomplete';
+  sheet_name: string;
+  sheet_link: string;
+  sheet_id: string;
+  event_name: string;
+  uploaded_by: string;
+  uploaded_at: string;
+  status: string;
+  closed_at?: string;
 }
-
-const mockHistoryData: HistoryRecord[] = [
-  {
-    id: '1',
-    eventName: 'Annual Conference 2026',
-    date: 'Feb 1, 2026',
-    time: '09:00 AM',
-    exportStatus: 'Completed'
-  },
-  {
-    id: '2',
-    eventName: 'Team Building Workshop',
-    date: 'Jan 28, 2026',
-    time: '02:30 PM',
-    exportStatus: 'Completed'
-  },
-  {
-    id: '3',
-    eventName: 'Product Launch Event',
-    date: 'Jan 25, 2026',
-    time: '11:00 AM',
-    exportStatus: 'Incomplete'
-  },
-  {
-    id: '4',
-    eventName: 'Monthly All Hands Meeting',
-    date: 'Jan 20, 2026',
-    time: '10:00 AM',
-    exportStatus: 'Completed'
-  },
-  {
-    id: '5',
-    eventName: 'Training Session - Q1',
-    date: 'Jan 15, 2026',
-    time: '03:00 PM',
-    exportStatus: 'Completed'
-  },
-  {
-    id: '6',
-    eventName: 'Client Presentation',
-    date: 'Jan 10, 2026',
-    time: '01:00 PM',
-    exportStatus: 'Incomplete'
-  },
-  {
-    id: '7',
-    eventName: 'Developer Meetup',
-    date: 'Jan 5, 2026',
-    time: '06:00 PM',
-    exportStatus: 'Completed'
-  },
-  {
-    id: '8',
-    eventName: 'Sales Summit',
-    date: 'Dec 28, 2025',
-    time: '09:30 AM',
-    exportStatus: 'Incomplete'
-  },
-  {
-    id: '9',
-    eventName: 'Holiday Party',
-    date: 'Dec 20, 2025',
-    time: '07:00 PM',
-    exportStatus: 'Completed'
-  },
-  {
-    id: '10',
-    eventName: 'Board Meeting',
-    date: 'Dec 15, 2025',
-    time: '02:00 PM',
-    exportStatus: 'Completed'
-  }
-];
 
 export function HistoryPage({ isDark, onNavigateToEventStats }: HistoryPageProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [historyData, setHistoryData] = useState<HistoryRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const itemsPerPage = 5;
 
-  const filteredHistory = mockHistoryData.filter(record =>
-    record.eventName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    record.date.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    record.time.toLowerCase().includes(searchQuery.toLowerCase())
+  // Fetch history data on component mount
+  useEffect(() => {
+    const fetchHistoryData = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        
+        const response = await fetch('http://localhost:3000/api/history');
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to fetch history');
+        }
+
+        const data = await response.json();
+        
+        if (data.success) {
+          setHistoryData(data.data);
+        } else {
+          throw new Error('Failed to parse history data');
+        }
+
+        setLoading(false);
+      } catch (err: any) {
+        console.error('Error fetching history:', err);
+        setError(err.message || 'Failed to load history data');
+        setLoading(false);
+      }
+    };
+
+    fetchHistoryData();
+  }, []);
+
+  const filteredHistory = historyData.filter(record =>
+    record.event_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    record.sheet_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    record.uploaded_by.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    record.uploaded_at.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Calculate pagination
@@ -118,6 +85,82 @@ export function HistoryPage({ isDark, onNavigateToEventStats }: HistoryPageProps
   const handleNextPage = () => {
     setCurrentPage(prev => Math.min(prev + 1, totalPages));
   };
+
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    } catch {
+      return dateString;
+    }
+  };
+
+  // Format time for display
+  const formatTime = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center" style={{ backgroundColor: "#0a1128" }}>
+        <div className="text-center">
+          <div
+            className="w-16 h-16 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4"
+            style={{
+              borderColor: "#b91372",
+              borderTopColor: "transparent",
+            }}
+          />
+          <p style={{ color: "#f5f0ff", fontSize: "18px", fontWeight: "500" }}>
+            Loading history...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center" style={{ backgroundColor: "#0a1128" }}>
+        <div className="text-center max-w-md px-4">
+          <div
+            className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center"
+            style={{ backgroundColor: "rgba(248, 113, 113, 0.1)" }}
+          >
+            <span style={{ color: "#f87171", fontSize: "32px" }}>⚠</span>
+          </div>
+          <p style={{ color: "#f87171", fontSize: "18px", fontWeight: "500", marginBottom: "8px" }}>
+            Error Loading History
+          </p>
+          <p style={{ color: "#f5f0ff", fontSize: "14px", opacity: 0.8 }}>
+            {error}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              marginTop: "20px",
+              padding: "10px 20px",
+              background: "linear-gradient(135deg, #4a1a4a 0%, #b91372 100%)",
+              color: "#ffffff",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full p-4 relative overflow-hidden">
@@ -174,7 +217,7 @@ export function HistoryPage({ isDark, onNavigateToEventStats }: HistoryPageProps
               />
               <input
                 type="text"
-                placeholder="Search by event name, date, or time..."
+                placeholder="Search by event name, sheet name, uploader, or date..."
                 value={searchQuery}
                 onChange={handleSearchChange}
                 className="flex-1 bg-transparent outline-none"
@@ -194,10 +237,15 @@ export function HistoryPage({ isDark, onNavigateToEventStats }: HistoryPageProps
             }}
           >
             {currentItems.length > 0 ? (
-              currentItems.map((record) => (
+              currentItems.map((record, index) => (
                 <div
-                  key={record.id}
-                  onClick={() => onNavigateToEventStats(record.eventName)}
+                  key={record.sheet_id || index}
+                  onClick={() => {
+                    // Store the sheet_link in localStorage for EventStatsBasics
+                    localStorage.setItem('historyEventSheetLink', record.sheet_link);
+                    localStorage.setItem('historyEventName', record.event_name);
+                    onNavigateToEventStats(record.event_name);
+                  }}
                   className="p-4 md:p-5 transition-all hover:scale-[1.01] backdrop-blur-sm cursor-pointer"
                   style={{
                     backgroundColor: isDark ? 'rgba(74, 26, 74, 0.15)' : 'rgba(185, 19, 114, 0.08)',
@@ -211,21 +259,24 @@ export function HistoryPage({ isDark, onNavigateToEventStats }: HistoryPageProps
                         className="text-lg mb-1"
                         style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
                       >
-                        {record.eventName}
+                        {record.event_name}
                       </h3>
                       <div className="flex flex-wrap gap-4 text-sm opacity-70">
                         <span style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}>
-                          {record.date}
+                          {formatDate(record.uploaded_at)}
                         </span>
                         <span style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}>
-                          {record.time}
+                          {formatTime(record.uploaded_at)}
+                        </span>
+                        <span style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}>
+                          By: {record.uploaded_by}
                         </span>
                       </div>
                     </div>
 
-                    {/* Export Status */}
+                    {/* Status */}
                     <div className="flex items-center gap-2">
-                      {record.exportStatus === 'Completed' ? (
+                      {record.status.toLowerCase() === 'active' ? (
                         <>
                           <CheckCircle className="w-5 h-5" style={{ color: '#22c55e' }} />
                           <span 
@@ -236,7 +287,7 @@ export function HistoryPage({ isDark, onNavigateToEventStats }: HistoryPageProps
                               border: '1px solid rgba(34, 197, 94, 0.3)'
                             }}
                           >
-                            Completed
+                            Active
                           </span>
                         </>
                       ) : (
@@ -250,7 +301,7 @@ export function HistoryPage({ isDark, onNavigateToEventStats }: HistoryPageProps
                               border: '1px solid rgba(245, 158, 11, 0.3)'
                             }}
                           >
-                            Incomplete
+                            {record.status}
                           </span>
                         </>
                       )}

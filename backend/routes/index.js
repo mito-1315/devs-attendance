@@ -3,6 +3,7 @@ import loginRoutes from "./loginRoutes.js";
 import createUserRoutes from "./createUserRoutes.js";
 import uploadSheetRoutes from "./uploadSheetRoutes.js";
 import attendanceSheetRoutes from "./attendanceSheetRoutes.js";
+import historyRoutes from "./HistoryRoutes.js";
 
 const router = express.Router();
 
@@ -10,6 +11,7 @@ router.use("/login", loginRoutes);
 router.use("/createuser",createUserRoutes);
 router.use("/upload",uploadSheetRoutes);
 router.use("/attendance",attendanceSheetRoutes);
+router.use("/history",historyRoutes);
 router.get("/health",(req,res)=>{
     console.log("/health is called")
     res.json({

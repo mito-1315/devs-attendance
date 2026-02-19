@@ -101,9 +101,14 @@ export function UploadPage({
         // Validation successful, show event name modal
         setShowEventNameModal(true);
       } else if (response.status === 409 && data.data) {
-        // Sheet already exists, store link and navigate to attendance page
-        localStorage.setItem('currentSheetLink', sheetLink);
-        navigate("/attendance", { state: { eventName: data.data.event_name, from: '/upload' } });
+        if (data.closed) {
+          // Sheet is closed, show error
+          setErrorMessage("The sheet is closed");
+        } else {
+          // Sheet already exists, store link and navigate to attendance page
+          localStorage.setItem('currentSheetLink', sheetLink);
+          navigate("/attendance", { state: { eventName: data.data.event_name, from: '/upload' } });
+        }
       } else {
         // Validation failed, show error message
         setErrorMessage(data.message || "Sheet validation failed");

@@ -50,6 +50,14 @@ export async function validateSheet(req, res) {
     // STEP 1: Check if sheet_id already exists in SHEET_HISTORY
     const existingSheet = await checkSheetIdExists(spreadsheetId);
     if (existingSheet) {
+      if (existingSheet.status && existingSheet.status.toLowerCase() === 'complete') {
+        return res.status(409).json({
+          success: false,
+          closed: true,
+          message: "The sheet is closed",
+          data: existingSheet
+        });
+      }
       return res.status(409).json({ 
         success: false, 
         message: "This sheet has already been uploaded to the system",

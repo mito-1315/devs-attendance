@@ -210,10 +210,16 @@ export async function display(req, res) {
             };
         }).filter(student => student.rollNumber && !student.isCommitted); // Filter out empty roll numbers and committed students
 
-        // Calculate total present count from ALL rows (including committed students)
+        // Calculate counts
+        let registeredCount = 0;
+        let onSpotCount = 0;
         let totalPresentCount = 0;
+        let totalAbsentCount = 0;
+
         cachedData.data.forEach((row) => {
+            const typeValue = typeIndex !== -1 ? (row[typeIndex] || '').toString().toUpperCase() : 'REGISTERED';
             const attendanceValue = statusIndex !== -1 ? (row[statusIndex] || 'FALSE') : 'FALSE';
+
             let isPresent = false;
             if (typeof attendanceValue === 'boolean') {
                 isPresent = attendanceValue;
@@ -221,29 +227,29 @@ export async function display(req, res) {
                 const upper = attendanceValue.toUpperCase();
                 isPresent = (upper === 'TRUE' || upper === 'YES');
             }
+
+            if (typeValue === 'ON-SPOT') {
+                onSpotCount++;
+            } else {
+                registeredCount++;
+            }
+
+            // Present/Absent purely from attendance column
             if (isPresent) {
                 totalPresentCount++;
+            } else {
+                totalAbsentCount++;
             }
         });
-
-        // Calculate on-spot count from ALL rows with type='ON-SPOT'
-        let onSpotCount = 0;
-        if (typeIndex !== -1) {
-            cachedData.data.forEach((row) => {
-                const typeValue = row[typeIndex] || '';
-                if (typeof typeValue === 'string' && typeValue.toUpperCase() === 'ON-SPOT') {
-                    onSpotCount++;
-                }
-            });
-        }
 
         return res.status(200).json({
             success: true,
             message: "Display data retrieved successfully",
             data: {
-                registered: cachedData.totalRows,
+                registered: registeredCount,
                 students: students,
                 presentCount: totalPresentCount,
+                absentCount: totalAbsentCount,
                 onSpotCount: onSpotCount
             }
         });

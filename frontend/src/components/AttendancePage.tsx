@@ -34,6 +34,7 @@ export function AttendancePage({ isDark, onBackToUpload, eventName }: Attendance
   const [students, setStudents] = useState<Student[]>([]);
   const [registered, setRegistered] = useState(0);
   const [presentCount, setPresentCount] = useState(0); // Present count from sheet
+  const [absentCount, setAbsentCount] = useState(0); // Absent count from sheet
   const [onSpotCount, setOnSpotCount] = useState(0); // On-spot count from sheet
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -234,6 +235,7 @@ export function AttendancePage({ isDark, onBackToUpload, eventName }: Attendance
         if (displayData.success) {
           setRegistered(displayData.data.registered);
           setPresentCount(displayData.data.presentCount || 0);
+          setAbsentCount(displayData.data.absentCount || 0);
           setOnSpotCount(displayData.data.onSpotCount || 0);
           // Transform backend data to match Student interface
           const transformedStudents = displayData.data.students.map((student: any) => ({
@@ -304,9 +306,9 @@ export function AttendancePage({ isDark, onBackToUpload, eventName }: Attendance
     student.rollNumber.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const totalPresent = presentCount; // Use present count from backend
-  const totalAbsent = students.length - students.filter(s => s.isPresent).length;
-  const totalOnSpot = onSpotCount; // Use on-spot count from backend
+  const totalPresent = presentCount; // Present: attendance=TRUE
+  const totalAbsent = registered + onSpotCount - presentCount; // Absent: Registered + On-Spot - Present
+  const totalOnSpot = onSpotCount; // On-Spot: type=ON-SPOT
 
   if (loading) {
     return (

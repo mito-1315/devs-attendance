@@ -5,7 +5,6 @@ import { LoginPage } from "./components/LoginPage";
 import { UploadPage } from "./components/UploadPage";
 import { AttendancePage } from "./components/AttendancePage";
 import { HistoryPage } from "./components/HistoryPage";
-import { SessionPage } from "./components/SessionPage";
 import { EventStatsBasics } from "./components/EventStatsBasics";
 import { ProfilePage } from "./components/ProfilePage";
 import { CreateUserPage } from "./components/CreateUserPage";
@@ -99,7 +98,7 @@ function Layout({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (isHistoryPage || isSessionsPage || isProfilePage || isCreateUserPage) {
+    if (isHistoryPage || isProfilePage || isCreateUserPage) {
       handleBackToUpload();
     }
   };
@@ -243,13 +242,7 @@ function AppContent() {
         </ProtectedRoute>
       } />
       
-      <Route path="/session" element={
-        <ProtectedRoute>
-          <Layout>
-            <SessionPageWrapper />
-          </Layout>
-        </ProtectedRoute>
-      } />
+      <Route path="/session" element={<Navigate to="/upload" replace />} />
       
       <Route path="/eventstats" element={
         <ProtectedRoute>
@@ -316,17 +309,6 @@ function HistoryPageWrapper() {
       isDark={true}
       onBackToUpload={() => navigate("/upload")}
       onNavigateToEventStats={(eventName) => navigate("/eventstats", { state: { eventName, from: '/history' } })}
-    />
-  );
-}
-
-function SessionPageWrapper() {
-  const navigate = useNavigate();
-  
-  return (
-    <SessionPage
-      isDark={true}
-      onNavigateToAttendance={(eventName) => navigate("/attendance", { state: { eventName, from: '/session' } })}
     />
   );
 }

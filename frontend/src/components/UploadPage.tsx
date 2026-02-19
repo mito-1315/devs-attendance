@@ -6,7 +6,6 @@ import {
   FileSpreadsheet,
   CheckCircle,
   History,
-  Calendar,
   User,
   UserPlus,
   LogOut,
@@ -70,8 +69,6 @@ export function UploadPage({
     setMenuOpen(false);
     if (item === "History") {
       navigate("/history");
-    } else if (item === "Sessions") {
-      navigate("/session");
     } else if (item === "Profile") {
       navigate("/profile");
     } else if (item === "Create User") {
@@ -253,25 +250,6 @@ export function UploadPage({
                   style={{ color: isDark ? "#b91372" : "#4a1a4a" }}
                 />
                 <span className="text-sm">History</span>
-              </button>
-              <button
-                onClick={() => handleMenuItemClick("Sessions")}
-                className="w-full px-4 py-3 flex items-center gap-3 transition-all hover:scale-[1.02]"
-                style={{
-                  backgroundColor: isDark
-                    ? "rgba(74, 26, 74, 0.2)"
-                    : "rgba(185, 19, 114, 0.1)",
-                  color: isDark ? "#f5f0ff" : "#0a1128",
-                  borderBottom: `1px solid ${
-                    isDark ? "rgba(74, 26, 74, 0.3)" : "rgba(185, 19, 114, 0.2)"
-                  }`,
-                }}
-              >
-                <Calendar
-                  className="w-5 h-5"
-                  style={{ color: isDark ? "#b91372" : "#4a1a4a" }}
-                />
-                <span className="text-sm">Sessions</span>
               </button>
               <button
                 onClick={() => handleMenuItemClick("Profile")}

@@ -82,11 +82,20 @@ export async function getHistoryEvent(req, res) {
         const typeIndex = headers.findIndex(h => h && h.toLowerCase() === 'type');
 
         // Calculate counts
-        let registeredCount = sheetDetails.totalRows;
+        let registeredCount = 0;
         let presentCount = 0;
         let onSpotCount = 0;
 
         sheetDetails.data.forEach((row) => {
+            const typeValue = typeIndex !== -1 ? (row[typeIndex] || '').toString().toUpperCase() : 'REGISTERED';
+
+            // Count registered vs on-spot
+            if (typeValue === 'ON-SPOT') {
+                onSpotCount++;
+            } else {
+                registeredCount++;
+            }
+
             // Count present
             const attendanceValue = attendanceIndex !== -1 ? (row[attendanceIndex] || 'FALSE') : 'FALSE';
             let isPresent = false;
@@ -99,17 +108,9 @@ export async function getHistoryEvent(req, res) {
             if (isPresent) {
                 presentCount++;
             }
-
-            // Count on-spot
-            if (typeIndex !== -1) {
-                const typeValue = row[typeIndex] || '';
-                if (typeof typeValue === 'string' && typeValue.toUpperCase() === 'ON-SPOT') {
-                    onSpotCount++;
-                }
-            }
         });
 
-        const absentCount = registeredCount - presentCount;
+        const absentCount = registeredCount + onSpotCount - presentCount;
 
         // Transform data for display (all students, not filtered)
         const students = sheetDetails.data.map((row, index) => {

@@ -71,7 +71,7 @@ export async function validateSheet(req, res) {
 
     // STEP 2: Validate headers
     const requiredHeaders = ["name", "roll_number", "mail_id", "department", "attendance"];
-    const optionalHeaders = ["commit", "type"];
+    const optionalHeaders = ["commit", "type", "marked_by"];
     
     // Trim all headers to remove whitespace
     const trimmedHeaders = headers.map(h => h ? h.trim() : '');
@@ -130,6 +130,7 @@ export async function validateSheet(req, res) {
     // Find column indices for optional columns
     const commitIndex = nonEmptyHeaders.indexOf('commit');
     const typeIndex = nonEmptyHeaders.indexOf('type');
+    const markedByIndex = nonEmptyHeaders.indexOf('marked_by');
 
     // STEP 3: Validate data types
     const data = await fetchData(spreadsheetId);
@@ -222,6 +223,22 @@ export async function validateSheet(req, res) {
           }
         }
       }
+
+      // Validate marked_by - Optional (String)
+      if (markedByIndex !== -1) {
+        const markedByValue = row[markedByIndex];
+        // marked_by can be empty or a string, just ensure it's valid if provided
+        if (markedByValue !== undefined && markedByValue !== null && markedByValue !== '') {
+          if (typeof markedByValue !== 'string') {
+            errors.push({
+              row: rowNumber,
+              column: "marked_by",
+              error: "marked_by must be a string if provided",
+              value: markedByValue
+            });
+          }
+        }
+      }
     });
 
     // If there are validation errors, return them
@@ -239,12 +256,19 @@ export async function validateSheet(req, res) {
       await addColumnToSheet(spreadsheetId, "type", "REGISTERED", validRowCount);
     }
 
+    // STEP 5: Check if 'marked_by' column exists, if not add it with default empty string
+    if (markedByIndex === -1) {
+      console.log("'marked_by' column not found, adding it with default empty value");
+      await addColumnToSheet(spreadsheetId, "marked_by", "", validRowCount);
+    }
+
     // All validations passed
     return res.status(200).json({ 
       success: true, 
       message: "Sheet validation successful",
       rowsValidated: validRowCount,
-      typeColumnAdded: typeIndex === -1
+      typeColumnAdded: typeIndex === -1,
+      markedByColumnAdded: markedByIndex === -1
     });
 
   } catch (error) {

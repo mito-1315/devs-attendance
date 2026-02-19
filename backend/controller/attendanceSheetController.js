@@ -1,4 +1,4 @@
-import { fetchDetails, ensureCommitColumn, updateCommitStatus, addStudentOnSpot, prepareExportData, createExcelFile, createZipFile } from '../storage/attendanceSheetStorage.js';
+import { fetchDetails, ensureCommitColumn, ensureMarkedByColumn, updateCommitStatus, addStudentOnSpot, prepareExportData, createExcelFile, createZipFile } from '../storage/attendanceSheetStorage.js';
 
 // In-memory cache for sheet details
 const sheetCache = new Map();
@@ -49,9 +49,13 @@ export async function informations(req, res) {
         const commitResult = await ensureCommitColumn(spreadsheetId);
         console.log('Commit column check:', commitResult.message);
 
-        // If commit column was added, refetch the details to get updated data
+        // Ensure marked_by column exists in the sheet
+        const markedByResult = await ensureMarkedByColumn(spreadsheetId);
+        console.log('marked_by column check:', markedByResult.message);
+
+        // If commit or marked_by column was added, refetch the details to get updated data
         let finalSheetDetails = sheetDetails;
-        if (commitResult.commitColumnAdded) {
+        if (commitResult.commitColumnAdded || markedByResult.markedByColumnAdded) {
             finalSheetDetails = await fetchDetails(spreadsheetId);
         }
 
@@ -63,6 +67,7 @@ export async function informations(req, res) {
             message: "Sheet details fetched successfully",
             cached: false,
             commitColumnAdded: commitResult.commitColumnAdded,
+            markedByColumnAdded: markedByResult.markedByColumnAdded,
             data: finalSheetDetails
         });
 
@@ -258,10 +263,11 @@ export async function display(req, res) {
  * @route POST /api/attendance/commit
  * @param {string} spreadsheet_id - Spreadsheet ID
  * @param {Array<string>} roll_numbers - Array of roll numbers with Present status
+ * @param {string} username - Username of the person committing
  */
 export async function commit(req, res) {
     try {
-        const { spreadsheet_id, roll_numbers } = req.body;
+        const { spreadsheet_id, roll_numbers, username } = req.body;
 
         if (!spreadsheet_id) {
             return res.status(400).json({
@@ -277,8 +283,15 @@ export async function commit(req, res) {
             });
         }
 
-        // Update commit status in Google Sheets
-        const result = await updateCommitStatus(spreadsheet_id, roll_numbers);
+        if (!username) {
+            return res.status(400).json({
+                success: false,
+                message: "Username is required"
+            });
+        }
+
+        // Update commit status in Google Sheets with username
+        const result = await updateCommitStatus(spreadsheet_id, roll_numbers, username);
 
         // Invalidate cache for this sheet so next fetch gets updated data
         if (sheetCache.has(spreadsheet_id)) {
@@ -312,10 +325,11 @@ export async function commit(req, res) {
  * @param {string} roll_number - Student roll number
  * @param {string} mail_id - Student email ID
  * @param {string} department - Student department
+ * @param {string} username - Username of the person adding the student
  */
 export async function addOnSpot(req, res) {
     try {
-        const { spreadsheet_id, name, roll_number, mail_id, department } = req.body;
+        const { spreadsheet_id, name, roll_number, mail_id, department, username } = req.body;
 
         if (!spreadsheet_id) {
             return res.status(400).json({
@@ -331,13 +345,20 @@ export async function addOnSpot(req, res) {
             });
         }
 
-        // Add student to Google Sheets
+        if (!username) {
+            return res.status(400).json({
+                success: false,
+                message: "Username is required"
+            });
+        }
+
+        // Add student to Google Sheets with username
         const result = await addStudentOnSpot(spreadsheet_id, {
             name,
             roll_number,
             mail_id,
             department
-        });
+        }, username);
 
         // Invalidate cache for this sheet so next fetch gets updated data
         if (sheetCache.has(spreadsheet_id)) {

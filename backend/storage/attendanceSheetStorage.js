@@ -131,12 +131,92 @@ export async function ensureCommitColumn(spreadsheetId) {
 }
 
 /**
+ * Add marked_by column to sheet if it doesn't already exist
+ * @param {string} spreadsheetId - The ID of the Google Sheet
+ * @returns {Promise<Object>} - Result with markedByColumnAdded flag and column index
+ */
+export async function ensureMarkedByColumn(spreadsheetId) {
+  try {
+    // Fetch current headers
+    const headerResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: "Sheet1!A1:Z1",
+    });
+
+    const headers = headerResponse.data.values ? headerResponse.data.values[0] : [];
+    
+    // Check if marked_by column already exists
+    const markedByIndex = headers.findIndex(h => 
+      h && h.toLowerCase() === 'marked_by'
+    );
+
+    if (markedByIndex !== -1) {
+      // marked_by column already exists
+      return {
+        markedByColumnAdded: false,
+        markedByColumnIndex: markedByIndex,
+        message: "marked_by column already exists"
+      };
+    }
+
+    // Find the next available column (after the last non-empty header)
+    const nextColumnIndex = headers.length;
+    const nextColumnLetter = getColumnLetter(nextColumnIndex);
+
+    // Add "marked_by" header
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `Sheet1!${nextColumnLetter}1`,
+      valueInputOption: "USER_ENTERED",
+      resource: {
+        values: [["marked_by"]]
+      }
+    });
+
+    // Get the total number of rows with data
+    const dataResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: "Sheet1!A:A", // Get column A to count rows
+    });
+
+    const totalRows = dataResponse.data.values ? dataResponse.data.values.length : 1;
+
+    // Add empty strings for all data rows (excluding header)
+    if (totalRows > 1) {
+      const emptyValues = [];
+      for (let i = 1; i < totalRows; i++) {
+        emptyValues.push([""]);
+      }
+
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `Sheet1!${nextColumnLetter}2:${nextColumnLetter}${totalRows}`,
+        valueInputOption: "USER_ENTERED",
+        resource: {
+          values: emptyValues
+        }
+      });
+    }
+
+    return {
+      markedByColumnAdded: true,
+      markedByColumnIndex: nextColumnIndex,
+      message: "marked_by column added successfully"
+    };
+
+  } catch (error) {
+    throw new Error(`Failed to ensure marked_by column: ${error.message}`);
+  }
+}
+
+/**
  * Update commit status for specific roll numbers
  * @param {string} spreadsheetId - The ID of the Google Sheet
  * @param {Array<string>} rollNumbers - Array of roll numbers to mark as committed
+ * @param {string} username - Username of the person committing
  * @returns {Promise<Object>} - Result with updated count
  */
-export async function updateCommitStatus(spreadsheetId, rollNumbers) {
+export async function updateCommitStatus(spreadsheetId, rollNumbers, username) {
   try {
     // Fetch current headers and data
     const dataResponse = await sheets.spreadsheets.values.get({
@@ -163,6 +243,9 @@ export async function updateCommitStatus(spreadsheetId, rollNumbers) {
     const commitIndex = headers.findIndex(h => 
       h && h.toLowerCase() === 'commit'
     );
+    const markedByIndex = headers.findIndex(h => 
+      h && h.toLowerCase() === 'marked_by'
+    );
 
     if (rollNumberIndex === -1) {
       throw new Error("Roll number column not found");
@@ -173,9 +256,13 @@ export async function updateCommitStatus(spreadsheetId, rollNumbers) {
     if (commitIndex === -1) {
       throw new Error("Commit column not found");
     }
+    if (markedByIndex === -1) {
+      throw new Error("marked_by column not found");
+    }
 
     const attendanceColumnLetter = getColumnLetter(attendanceIndex);
     const commitColumnLetter = getColumnLetter(commitIndex);
+    const markedByColumnLetter = getColumnLetter(markedByIndex);
     const updates = [];
     let updatedCount = 0;
 
@@ -196,11 +283,16 @@ export async function updateCommitStatus(spreadsheetId, rollNumbers) {
           range: `Sheet1!${commitColumnLetter}${rowNumber}`,
           values: [[true]]
         });
+        // Update marked_by column with username
+        updates.push({
+          range: `Sheet1!${markedByColumnLetter}${rowNumber}`,
+          values: [[username]]
+        });
         updatedCount++;
       }
     }
 
-    // Batch update all commit columns
+    // Batch update all columns
     if (updates.length > 0) {
       await sheets.spreadsheets.values.batchUpdate({
         spreadsheetId,
@@ -214,7 +306,7 @@ export async function updateCommitStatus(spreadsheetId, rollNumbers) {
     return {
       success: true,
       updatedCount,
-      message: `${updatedCount} students marked as committed`
+      message: `${updatedCount} students marked as committed by ${username}`
     };
 
   } catch (error) {
@@ -226,9 +318,10 @@ export async function updateCommitStatus(spreadsheetId, rollNumbers) {
  * Add a new student on-spot to the sheet
  * @param {string} spreadsheetId - The ID of the Google Sheet
  * @param {Object} studentData - Student data {name, roll_number, mail_id, department}
+ * @param {string} username - Username of the person adding the student
  * @returns {Promise<Object>} - Result with success status
  */
-export async function addStudentOnSpot(spreadsheetId, studentData) {
+export async function addStudentOnSpot(spreadsheetId, studentData, username) {
   try {
     const { name, roll_number, mail_id, department } = studentData;
 
@@ -241,8 +334,8 @@ export async function addStudentOnSpot(spreadsheetId, studentData) {
     const totalRows = dataResponse.data.values ? dataResponse.data.values.length : 1;
     const newRowNumber = totalRows + 1;
 
-    // Prepare the new row data: name, roll_number, mail_id, department, attendance=TRUE, commit=TRUE, type=ON-SPOT
-    const newRow = [name, roll_number, mail_id, department, true, true, "ON-SPOT"];
+    // Prepare the new row data: name, roll_number, mail_id, department, attendance=TRUE, commit=TRUE, type=ON-SPOT, marked_by=username
+    const newRow = [name, roll_number, mail_id, department, true, true, "ON-SPOT", username];
 
     // Append the new row
     await sheets.spreadsheets.values.append({
@@ -256,12 +349,13 @@ export async function addStudentOnSpot(spreadsheetId, studentData) {
 
     return {
       success: true,
-      message: "Student added on-spot successfully",
+      message: `Student added on-spot successfully by ${username}`,
       studentData: {
         name,
         roll_number,
         mail_id,
-        department
+        department,
+        marked_by: username
       }
     };
 

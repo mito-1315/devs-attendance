@@ -4,6 +4,8 @@ import { getCachedUser } from '../services/auth';
 interface ProfilePageProps {
   isDark: boolean;
   onBackToUpload: () => void;
+  onNavigateToAttendance: (sessionName: string) => void;
+  onNavigateToEventStats: (sessionName: string) => void;
 }
 
 interface UserData {
@@ -18,22 +20,21 @@ interface UserData {
 interface Session {
   id: string;
   name: string;
-  status: 'Active' | 'Complete';
+  status: 'active' | 'complete';
+  sheet_name: string;
+  sheet_link: string;
+  uploaded_at: string;
+  closed_at: string;
 }
 
-export function ProfilePage({ isDark, onBackToUpload }: ProfilePageProps) {
+export function ProfilePage({ isDark, onBackToUpload, onNavigateToAttendance, onNavigateToEventStats }: ProfilePageProps) {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
-
-  // Mock sessions data (30 entries for scrolling)
-  const sessions: Session[] = Array.from({ length: 30 }, (_, i) => ({
-    id: `SES${String(i + 1).padStart(5, '0')}`,
-    name: `Session ${i + 1}`,
-    status: i % 3 === 0 ? 'Complete' : 'Active'
-  }));
+  const [sessions, setSessions] = useState<Session[]>([]);
 
   useEffect(() => {
     fetchProfileData();
+    fetchSessions();
   }, []);
 
   const fetchProfileData = async () => {
@@ -70,6 +71,35 @@ export function ProfilePage({ isDark, onBackToUpload }: ProfilePageProps) {
       console.error('Error fetching profile data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSessions = async () => {
+    try {
+      const cachedUser = getCachedUser();
+      const username = cachedUser?.username;
+
+      if (!username) {
+        console.error('No username found in cache');
+        return;
+      }
+
+      const response = await fetch('http://localhost:3000/api/profile/getsession', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username }),
+      });
+      const data = await response.json();
+
+      console.log('Sessions response from backend:', data);
+
+      if (data.success) {
+        setSessions(data.sessions);
+      }
+    } catch (error) {
+      console.error('Error fetching sessions:', error);
     }
   };
 
@@ -256,58 +286,111 @@ export function ProfilePage({ isDark, onBackToUpload }: ProfilePageProps) {
               </style>
               
               <div className="space-y-3">
-                {sessions.map((session) => (
+                {sessions.length === 0 ? (
                   <div
-                    key={session.id}
-                    className="p-4"
+                    className="p-6 text-center"
                     style={{
                       backgroundColor: isDark ? 'rgba(74, 26, 74, 0.15)' : 'rgba(185, 19, 114, 0.08)',
-                      border: `1px solid ${isDark ? 'rgba(74, 26, 74, 0.3)' : 'rgba(185, 19, 114, 0.2)'}`
+                      border: `1px solid ${isDark ? 'rgba(74, 26, 74, 0.3)' : 'rgba(185, 19, 114, 0.2)'}`,
                     }}
                   >
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 
-                        className="text-base md:text-lg"
-                        style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
-                      >
-                        {session.name}
-                      </h3>
-                      <span
-                        className="text-xs px-2 py-1"
-                        style={{
-                          backgroundColor: session.status === 'Active'
-                            ? isDark ? 'rgba(74, 185, 27, 0.2)' : 'rgba(74, 185, 27, 0.15)'
-                            : isDark ? 'rgba(74, 26, 74, 0.3)' : 'rgba(185, 19, 114, 0.15)',
-                          color: session.status === 'Active'
-                            ? isDark ? '#6fd147' : '#4a9c2e'
-                            : isDark ? '#f5f0ff' : '#0a1128'
-                        }}
-                      >
-                        {session.status}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <p 
-                        className="text-sm opacity-60"
-                        style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
-                      >
-                        Session ID:
-                      </p>
-                      <p 
-                        className="text-sm select-none"
-                        style={{ 
-                          color: isDark ? '#b91372' : '#4a1a4a',
-                          userSelect: 'none',
-                          WebkitUserSelect: 'none',
-                          MozUserSelect: 'none',
-                          msUserSelect: 'none'
-                        }}
-                      >
-                        {session.id}
-                      </p>
-                    </div>
+                    <p
+                      className="text-base opacity-60"
+                      style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
+                    >
+                      No sessions created yet
+                    </p>
                   </div>
-                ))}
+                ) : (
+                  sessions.map((session) => (
+                    <div
+                      key={session.id}
+                      className="p-4 cursor-pointer transition-transform duration-200"
+                      onClick={() => {
+                        if (session.status === 'active') {
+                          onNavigateToAttendance(session.name);
+                        } else {
+                          onNavigateToEventStats(session.name);
+                        }
+                      }}
+                      style={{
+                        backgroundColor: isDark ? 'rgba(74, 26, 74, 0.15)' : 'rgba(185, 19, 114, 0.08)',
+                        border: `1px solid ${isDark ? 'rgba(74, 26, 74, 0.3)' : 'rgba(185, 19, 114, 0.2)'}`,
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = isDark ? 'rgba(74, 26, 74, 0.25)' : 'rgba(185, 19, 114, 0.15)';
+                        e.currentTarget.style.transform = 'scale(1.02)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = isDark ? 'rgba(74, 26, 74, 0.15)' : 'rgba(185, 19, 114, 0.08)';
+                        e.currentTarget.style.transform = 'scale(1)';
+                      }}
+                    >
+                      <div className="flex justify-between items-center mb-3">
+                        <div className="flex items-center gap-3">
+                          <h3 
+                            className="text-base md:text-lg"
+                            style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
+                          >
+                            {session.name}
+                          </h3>
+                          <span
+                            className="text-xs px-2 py-1"
+                            style={{
+                              backgroundColor: session.status === 'active'
+                                ? isDark ? 'rgba(74, 185, 27, 0.2)' : 'rgba(74, 185, 27, 0.15)'
+                                : isDark ? 'rgba(74, 26, 74, 0.3)' : 'rgba(185, 19, 114, 0.15)',
+                              color: session.status === 'active'
+                                ? isDark ? '#6fd147' : '#4a9c2e'
+                                : isDark ? '#f5f0ff' : '#0a1128'
+                            }}
+                          >
+                            {session.status}
+                          </span>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent session click when closing
+                            // Add close session logic here
+                            console.log('Closing session:', session.id);
+                          }}
+                          disabled={session.status === 'complete'}
+                          className="px-4 py-2 text-sm transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                          style={{
+                            background: session.status === 'active' 
+                              ? 'linear-gradient(135deg, #4a1a4a 0%, #b91372 100%)'
+                              : isDark ? 'rgba(74, 26, 74, 0.3)' : 'rgba(185, 19, 114, 0.2)',
+                            color: '#ffffff',
+                            border: 'none',
+                            cursor: session.status === 'complete' ? 'not-allowed' : 'pointer'
+                          }}
+                        >
+                          Close
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <p 
+                          className="text-sm opacity-60"
+                          style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
+                        >
+                          Session ID:
+                        </p>
+                        <p 
+                          className="text-sm select-none"
+                          style={{ 
+                            color: isDark ? '#b91372' : '#4a1a4a',
+                            userSelect: 'none',
+                            WebkitUserSelect: 'none',
+                            MozUserSelect: 'none',
+                            msUserSelect: 'none'
+                          }}
+                        >
+                          {session.id}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>

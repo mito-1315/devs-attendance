@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Search, Users, UserCheck, UserX, Save, UserPlus, Download, Copy, Check } from 'lucide-react';
+import { getCachedUser } from '../services/auth';
 
 interface AttendancePageProps {
   isDark: boolean;
@@ -165,6 +166,14 @@ export function AttendancePage({ isDark, onBackToUpload, eventName }: Attendance
 
   const handleConfirmCommit = async () => {
     try {
+      // Get username from cached user
+      const user = getCachedUser();
+      if (!user || !user.username) {
+        alert('User not authenticated. Please login again.');
+        setShowCommitConfirm(false);
+        return;
+      }
+
       // Get all students marked as present
       const presentStudents = students.filter(student => student.isPresent);
       const rollNumbers = presentStudents.map(student => student.rollNumber);
@@ -183,6 +192,7 @@ export function AttendancePage({ isDark, onBackToUpload, eventName }: Attendance
         body: JSON.stringify({
           spreadsheet_id: spreadsheetId,
           roll_numbers: rollNumbers,
+          username: user.username,
         }),
       });
 
@@ -800,6 +810,13 @@ export function AttendancePage({ isDark, onBackToUpload, eventName }: Attendance
                 <button
                   onClick={async () => {
                     try {
+                      // Get username from cached user
+                      const user = getCachedUser();
+                      if (!user || !user.username) {
+                        alert('User not authenticated. Please login again.');
+                        return;
+                      }
+
                       if (!newStudent.name || !newStudent.rollNumber || !newStudent.emailId || !newStudent.department) {
                         alert('Please fill in all fields');
                         return;
@@ -817,6 +834,7 @@ export function AttendancePage({ isDark, onBackToUpload, eventName }: Attendance
                           roll_number: newStudent.rollNumber,
                           mail_id: newStudent.emailId,
                           department: newStudent.department,
+                          username: user.username,
                         }),
                       });
 

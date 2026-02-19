@@ -69,9 +69,15 @@ function Layout({ children }: { children: React.ReactNode }) {
     // Clear cache when leaving attendance page
     if (isAttendancePage) {
       await clearAttendanceCache();
+      // Check where the user came from via location state
+      const state = location.state as { from?: string };
+      const from = state?.from || "/upload";
+      setShowBackConfirm(false);
+      navigate(from);
+    } else {
+      setShowBackConfirm(false);
+      navigate("/upload");
     }
-    setShowBackConfirm(false);
-    navigate("/upload");
   };
 
   const handleBackToHistory = () => {
@@ -86,7 +92,10 @@ function Layout({ children }: { children: React.ReactNode }) {
     }
 
     if (isEventStatsPage) {
-      handleBackToHistory();
+      // Check where the user came from via location state
+      const state = location.state as { from?: string };
+      const from = state?.from || "/history";
+      navigate(from);
       return;
     }
 
@@ -286,12 +295,14 @@ function UploadPageWrapper({ onLogout }: { onLogout: () => void }) {
 function AttendancePageWrapper() {
   const navigate = useNavigate();
   const location = useLocation();
-  const eventName = (location.state as { eventName?: string })?.eventName || "";
+  const state = location.state as { eventName?: string; from?: string };
+  const eventName = state?.eventName || "";
+  const from = state?.from || "/upload";
   
   return (
     <AttendancePage
       isDark={true}
-      onBackToUpload={() => navigate("/upload")}
+      onBackToUpload={() => navigate(from)}
       eventName={eventName}
     />
   );
@@ -304,7 +315,7 @@ function HistoryPageWrapper() {
     <HistoryPage
       isDark={true}
       onBackToUpload={() => navigate("/upload")}
-      onNavigateToEventStats={(eventName) => navigate("/eventstats", { state: { eventName } })}
+      onNavigateToEventStats={(eventName) => navigate("/eventstats", { state: { eventName, from: '/history' } })}
     />
   );
 }
@@ -315,7 +326,7 @@ function SessionPageWrapper() {
   return (
     <SessionPage
       isDark={true}
-      onNavigateToAttendance={(eventName) => navigate("/attendance", { state: { eventName } })}
+      onNavigateToAttendance={(eventName) => navigate("/attendance", { state: { eventName, from: '/session' } })}
     />
   );
 }
@@ -323,12 +334,14 @@ function SessionPageWrapper() {
 function EventStatsPageWrapper() {
   const navigate = useNavigate();
   const location = useLocation();
-  const eventName = (location.state as { eventName?: string })?.eventName || "";
+  const state = location.state as { eventName?: string; from?: string };
+  const eventName = state?.eventName || "";
+  const from = state?.from || "/history";
   
   return (
     <EventStatsBasics
       isDark={true}
-      onBackToHistory={() => navigate("/history")}
+      onBackToHistory={() => navigate(from)}
       eventName={eventName}
     />
   );
@@ -341,6 +354,8 @@ function ProfilePageWrapper() {
     <ProfilePage
       isDark={true}
       onBackToUpload={() => navigate("/upload")}
+      onNavigateToAttendance={(sessionName) => navigate("/attendance", { state: { eventName: sessionName, from: '/profile' } })}
+      onNavigateToEventStats={(sessionName) => navigate("/eventstats", { state: { eventName: sessionName, from: '/profile' } })}
     />
   );
 }

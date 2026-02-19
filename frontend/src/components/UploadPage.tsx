@@ -106,7 +106,7 @@ export function UploadPage({
       } else if (response.status === 409 && data.data) {
         // Sheet already exists, store link and navigate to attendance page
         localStorage.setItem('currentSheetLink', sheetLink);
-        navigate("/attendance", { state: { eventName: data.data.event_name } });
+        navigate("/attendance", { state: { eventName: data.data.event_name, from: '/upload' } });
       } else {
         // Validation failed, show error message
         setErrorMessage(data.message || "Sheet validation failed");
@@ -146,11 +146,11 @@ export function UploadPage({
       if (response.ok && data.success) {
         // Upload successful, store link and navigate to attendance page
         localStorage.setItem('currentSheetLink', sheetLink);
-        navigate("/attendance", { state: { eventName } });
+        navigate("/attendance", { state: { eventName, from: '/upload' } });
       } else if (response.status === 409 && data.data) {
         // Sheet already exists, store link and navigate to attendance page
         localStorage.setItem('currentSheetLink', sheetLink);
-        navigate("/attendance", { state: { eventName: data.data.event_name } });
+        navigate("/attendance", { state: { eventName: data.data.event_name, from: '/upload' } });
       }
     } catch (error) {
       console.error("Upload error:", error);

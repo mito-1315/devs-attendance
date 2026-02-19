@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Users, UserCheck, UserX, UserPlus, Download, Copy, Check } from 'lucide-react';
+import { Search, Users, UserCheck, UserX, UserPlus, Download, Copy, Check, Filter } from 'lucide-react';
 
 interface EventStatsBasicsProps {
   isDark: boolean;
@@ -17,6 +17,7 @@ interface Student {
 
 export function EventStatsBasics({ isDark, onBackToHistory, eventName }: EventStatsBasicsProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [attendanceFilter, setAttendanceFilter] = useState<'all' | 'present' | 'absent'>('all');
   const [students, setStudents] = useState<Student[]>([]);
   const [registered, setRegistered] = useState(0);
   const [presentCount, setPresentCount] = useState(0);
@@ -140,10 +141,17 @@ export function EventStatsBasics({ isDark, onBackToHistory, eventName }: EventSt
     }
   };
 
-  const filteredStudents = students.filter(student =>
-    student.rollNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    student.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredStudents = students.filter(student => {
+    const matchesSearch = student.rollNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      student.name.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesAttendance = 
+      attendanceFilter === 'all' ? true :
+      attendanceFilter === 'present' ? student.isPresent :
+      !student.isPresent;
+    
+    return matchesSearch && matchesAttendance;
+  });
 
   if (loading) {
     return (
@@ -247,27 +255,7 @@ export function EventStatsBasics({ isDark, onBackToHistory, eventName }: EventSt
             </p>
           </div>
           
-          {/* Session Code - Click to Copy */}
-          <div 
-            onClick={handleCopyCode}
-            className="p-2 md:p-3 cursor-pointer transition-all hover:scale-[1.02] flex items-center gap-2"
-            style={{
-              backgroundColor: isDark ? 'rgba(74, 26, 74, 0.2)' : 'rgba(185, 19, 114, 0.1)',
-              border: `1px solid ${isDark ? 'rgba(74, 26, 74, 0.3)' : 'rgba(185, 19, 114, 0.3)'}`
-            }}
-          >
-            <p 
-              className="text-sm md:text-lg font-semibold"
-              style={{ color: isDark ? '#b91372' : '#4a1a4a' }}
-            >
-              {sessionCode}
-            </p>
-            {copied ? (
-              <Check className="w-4 h-4 md:w-5 md:h-5" style={{ color: '#22c55e' }} />
-            ) : (
-              <Copy className="w-4 h-4 md:w-5 md:h-5 opacity-50" style={{ color: isDark ? '#f5f0ff' : '#0a1128' }} />
-            )}
-          </div>
+          
         </div>
 
         {/* Statistics Cards */}
@@ -326,33 +314,66 @@ export function EventStatsBasics({ isDark, onBackToHistory, eventName }: EventSt
           </div>
         </div>
 
-        {/* Search Bar */}
-        <div>
-          <label 
-            htmlFor="search" 
-            className="block mb-2 text-sm md:text-base opacity-75"
-            style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
-          >
-            Search Student
-          </label>
-          <div className="relative">
-            <Search 
-              className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 w-5 h-5 md:w-6 md:h-6 opacity-50"
+        {/* Search and Filter Bar */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label 
+              htmlFor="search" 
+              className="block mb-2 text-sm md:text-base opacity-75"
               style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
-            />
-            <input
-              id="search"
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by roll number..."
-              className="w-full pl-11 md:pl-14 pr-3 md:pr-4 py-2.5 md:py-3 transition-all focus:outline-none focus:ring-2 text-sm md:text-base"
-              style={{
-                backgroundColor: isDark ? 'rgba(74, 26, 74, 0.2)' : 'rgba(185, 19, 114, 0.1)',
-                color: isDark ? '#f5f0ff' : '#0a1128',
-                border: isDark ? '1px solid rgba(74, 26, 74, 0.3)' : '1px solid rgba(185, 19, 114, 0.3)'
-              }}
-            />
+            >
+              Search Student
+            </label>
+            <div className="relative">
+              <Search 
+                className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 w-5 h-5 md:w-6 md:h-6 opacity-50"
+                style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
+              />
+              <input
+                id="search"
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by roll number..."
+                className="w-full pl-11 md:pl-14 pr-3 md:pr-4 py-2.5 md:py-3 transition-all focus:outline-none focus:ring-2 text-sm md:text-base"
+                style={{
+                  backgroundColor: isDark ? 'rgba(74, 26, 74, 0.2)' : 'rgba(185, 19, 114, 0.1)',
+                  color: isDark ? '#f5f0ff' : '#0a1128',
+                  border: isDark ? '1px solid rgba(74, 26, 74, 0.3)' : '1px solid rgba(185, 19, 114, 0.3)'
+                }}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label 
+              htmlFor="attendanceFilter" 
+              className="block mb-2 text-sm md:text-base opacity-75"
+              style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
+            >
+              Filter by Attendance
+            </label>
+            <div className="relative">
+              <Filter 
+                className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 w-5 h-5 md:w-6 md:h-6 opacity-50"
+                style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
+              />
+              <select
+                id="attendanceFilter"
+                value={attendanceFilter}
+                onChange={(e) => setAttendanceFilter(e.target.value as 'all' | 'present' | 'absent')}
+                className="w-full pl-11 md:pl-14 pr-3 md:pr-4 py-2.5 md:py-3 transition-all focus:outline-none focus:ring-2 text-sm md:text-base cursor-pointer appearance-none"
+                style={{
+                  backgroundColor: isDark ? 'rgba(74, 26, 74, 0.2)' : 'rgba(185, 19, 114, 0.1)',
+                  color: isDark ? '#f5f0ff' : '#0a1128',
+                  border: isDark ? '1px solid rgba(74, 26, 74, 0.3)' : '1px solid rgba(185, 19, 114, 0.3)',
+                }}
+              >
+                <option value="all">All Students</option>
+                <option value="present">Present Only</option>
+                <option value="absent">Absent Only</option>
+              </select>
+            </div>
           </div>
         </div>
 

@@ -1,6 +1,18 @@
+import { useEffect, useState } from 'react';
+import { getCachedUser } from '../services/auth';
+
 interface ProfilePageProps {
   isDark: boolean;
   onBackToUpload: () => void;
+}
+
+interface UserData {
+  username: string;
+  name: string;
+  roll_number: string;
+  department: string;
+  team: string;
+  role: string;
 }
 
 interface Session {
@@ -10,13 +22,8 @@ interface Session {
 }
 
 export function ProfilePage({ isDark, onBackToUpload }: ProfilePageProps) {
-  // Mock user data
-  const userData = {
-    name: 'John Doe',
-    year: '3rd Year',
-    rollNumber: 'CS21B1001',
-    role: 'Student'
-  };
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // Mock sessions data (30 entries for scrolling)
   const sessions: Session[] = Array.from({ length: 30 }, (_, i) => ({
@@ -24,6 +31,55 @@ export function ProfilePage({ isDark, onBackToUpload }: ProfilePageProps) {
     name: `Session ${i + 1}`,
     status: i % 3 === 0 ? 'Complete' : 'Active'
   }));
+
+  useEffect(() => {
+    fetchProfileData();
+  }, []);
+
+  const fetchProfileData = async () => {
+    try {
+      const cachedUser = getCachedUser();
+      const username = cachedUser?.username;
+      
+      console.log('Cached user from localStorage:', cachedUser);
+      console.log('Username extracted:', username);
+
+      if (!username) {
+        console.error('No username found in cache');
+        setLoading(false);
+        return;
+      }
+
+      console.log('Request body to send:', { username });
+
+      const response = await fetch('http://localhost:3000/api/profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username }),
+      });
+      const data = await response.json();
+      
+      console.log('Response from backend:', data);
+
+      if (data.success) {
+        setUserData(data.user);
+      }
+    } catch (error) {
+      console.error('Error fetching profile data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen w-full p-4 flex items-center justify-center">
+        <p style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}>Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full p-4 relative overflow-hidden">
@@ -69,8 +125,22 @@ export function ProfilePage({ isDark, onBackToUpload }: ProfilePageProps) {
               backgroundColor: isDark ? 'rgba(74, 26, 74, 0.2)' : 'rgba(185, 19, 114, 0.1)',
               border: `1px solid ${isDark ? 'rgba(74, 26, 74, 0.3)' : 'rgba(185, 19, 114, 0.2)'}`
             }}
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          >{/* First Row: Username, Name, Roll Number */}
+            <div className="grid grid-cols-3 gap-4 mb-4">
+              <div>
+                <p 
+                  className="text-sm opacity-60 mb-1"
+                  style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
+                >
+                  Username
+                </p>
+                <p 
+                  className="text-lg"
+                  style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
+                >
+                  {userData?.username || 'N/A'}
+                </p>
+              </div>
               <div>
                 <p 
                   className="text-sm opacity-60 mb-1"
@@ -82,21 +152,7 @@ export function ProfilePage({ isDark, onBackToUpload }: ProfilePageProps) {
                   className="text-lg"
                   style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
                 >
-                  {userData.name}
-                </p>
-              </div>
-              <div>
-                <p 
-                  className="text-sm opacity-60 mb-1"
-                  style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
-                >
-                  Year
-                </p>
-                <p 
-                  className="text-lg"
-                  style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
-                >
-                  {userData.year}
+                  {userData?.name || 'N/A'}
                 </p>
               </div>
               <div>
@@ -110,7 +166,25 @@ export function ProfilePage({ isDark, onBackToUpload }: ProfilePageProps) {
                   className="text-lg"
                   style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
                 >
-                  {userData.rollNumber}
+                  {userData?.roll_number || 'N/A'}
+                </p>
+              </div>
+            </div>
+
+            {/* Second Row: Department, Role, Team */}
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <p 
+                  className="text-sm opacity-60 mb-1"
+                  style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
+                >
+                  Department
+                </p>
+                <p 
+                  className="text-lg"
+                  style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
+                >
+                  {userData?.department || 'N/A'}
                 </p>
               </div>
               <div>
@@ -124,7 +198,21 @@ export function ProfilePage({ isDark, onBackToUpload }: ProfilePageProps) {
                   className="text-lg"
                   style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
                 >
-                  {userData.role}
+                  {userData?.role || 'N/A'}
+                </p>
+              </div>
+              <div>
+                <p 
+                  className="text-sm opacity-60 mb-1"
+                  style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
+                >
+                  Team
+                </p>
+                <p 
+                  className="text-lg"
+                  style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
+                >
+                  {userData?.team || 'N/A'}
                 </p>
               </div>
             </div>

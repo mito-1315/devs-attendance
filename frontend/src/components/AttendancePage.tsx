@@ -397,27 +397,6 @@ export function AttendancePage({ isDark, onBackToUpload, eventName }: Attendance
             </h1>
           </div>
           
-          {/* Session Code - Click to Copy */}
-          <div 
-            onClick={handleCopyCode}
-            className="p-2 md:p-3 cursor-pointer transition-all hover:scale-[1.02] flex items-center gap-2"
-            style={{
-              backgroundColor: isDark ? 'rgba(74, 26, 74, 0.2)' : 'rgba(185, 19, 114, 0.1)',
-              border: `1px solid ${isDark ? 'rgba(74, 26, 74, 0.3)' : 'rgba(185, 19, 114, 0.3)'}` 
-            }}
-          >
-            <p 
-              className="text-sm md:text-lg font-semibold"
-              style={{ color: isDark ? '#b91372' : '#4a1a4a' }}
-            >
-              {sessionCode}
-            </p>
-            {copied ? (
-              <Check className="w-4 h-4 md:w-5 md:h-5" style={{ color: '#22c55e' }} />
-            ) : (
-              <Copy className="w-4 h-4 md:w-5 md:h-5 opacity-50" style={{ color: isDark ? '#f5f0ff' : '#0a1128' }} />
-            )}
-          </div>
         </div>
 
         {/* Statistics Cards */}

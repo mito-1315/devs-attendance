@@ -34,6 +34,7 @@ export function UploadPage({
   const [isUploading, setIsUploading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const linkFilled = sheetLink.trim().length > 0;
+  const currentUser = getCachedUser();
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -275,22 +276,24 @@ export function UploadPage({
                 />
                 <span className="text-sm">Profile</span>
               </button>
-              <button
-                onClick={() => handleMenuItemClick("Create User")}
-                className="w-full px-4 py-3 flex items-center gap-3 transition-all hover:scale-[1.02]"
-                style={{
-                  backgroundColor: isDark
-                    ? "rgba(74, 26, 74, 0.2)"
-                    : "rgba(185, 19, 114, 0.1)",
-                  color: isDark ? "#f5f0ff" : "#0a1128",
-                }}
-              >
-                <UserPlus
-                  className="w-5 h-5"
-                  style={{ color: isDark ? "#b91372" : "#4a1a4a" }}
-                />
-                <span className="text-sm">Create User</span>
-              </button>
+              {currentUser?.isAdmin && (
+                <button
+                  onClick={() => handleMenuItemClick("Create User")}
+                  className="w-full px-4 py-3 flex items-center gap-3 transition-all hover:scale-[1.02]"
+                  style={{
+                    backgroundColor: isDark
+                      ? "rgba(74, 26, 74, 0.2)"
+                      : "rgba(185, 19, 114, 0.1)",
+                    color: isDark ? "#f5f0ff" : "#0a1128",
+                  }}
+                >
+                  <UserPlus
+                    className="w-5 h-5"
+                    style={{ color: isDark ? "#b91372" : "#4a1a4a" }}
+                  />
+                  <span className="text-sm">Create User</span>
+                </button>
+              )}
               <button
                 onClick={() => handleMenuItemClick("Logout")}
                 className="w-full px-4 py-3 flex items-center gap-3 transition-all hover:scale-[1.02]"
@@ -566,7 +569,7 @@ export function UploadPage({
                   <li><strong>roll_number</strong></li>
                   <li><strong>mail</strong></li>
                   <li><strong>department</strong></li>
-                  <li><strong>attendance</strong> (must be a checkbox field)</li>
+                  <li><strong>attendance</strong></li>
                 </ul>
               </div>
 

@@ -31,7 +31,8 @@ export async function loginCheck(req,res){
                 res.status(200).json({ 
                     success: true, 
                     message: 'Login successful', 
-                    user: usernameResult.row.slice(0,6)
+                    user: usernameResult.row.slice(0,6),
+                    admin: usernameResult.admin
                 });
             }
 

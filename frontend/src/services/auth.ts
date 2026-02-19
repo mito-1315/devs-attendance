@@ -5,6 +5,7 @@ export interface User {
   name?: string;
   email?: string;
   role?: string;
+  isAdmin?: boolean;
 }
 
 export interface LoginResponse {
@@ -44,6 +45,7 @@ export async function login(username: string, password: string): Promise<LoginRe
         name: data.user[1],
         email: data.user[2],
         role: data.user[5],
+        isAdmin: data.admin === 'TRUE',
       });
       return data;
     } else {

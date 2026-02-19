@@ -8,7 +8,7 @@ import { HistoryPage } from "./components/HistoryPage";
 import { EventStatsBasics } from "./components/EventStatsBasics";
 import { ProfilePage } from "./components/ProfilePage";
 import { CreateUserPage } from "./components/CreateUserPage";
-import { getAuthState, logout } from "./services/auth";
+import { getAuthState, getCachedUser, logout } from "./services/auth";
 
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -16,6 +16,22 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   
   if (!authState.isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+  
+  return <>{children}</>;
+}
+
+// Admin-only Route Component
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const authState = getAuthState();
+  
+  if (!authState.isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const user = getCachedUser();
+  if (!user?.isAdmin) {
+    return <Navigate to="/upload" replace />;
   }
   
   return <>{children}</>;
@@ -261,11 +277,11 @@ function AppContent() {
       } />
       
       <Route path="/createuser" element={
-        <ProtectedRoute>
+        <AdminRoute>
           <Layout>
             <CreateUserPageWrapper />
           </Layout>
-        </ProtectedRoute>
+        </AdminRoute>
       } />
       
       <Route path="/" element={<Navigate to="/login" replace />} />

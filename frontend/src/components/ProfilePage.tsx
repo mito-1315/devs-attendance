@@ -31,6 +31,9 @@ export function ProfilePage({ isDark, onBackToUpload, onNavigateToAttendance, on
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [sessionToClose, setSessionToClose] = useState<Session | null>(null);
+  const [closing, setClosing] = useState(false);
 
   useEffect(() => {
     fetchProfileData();
@@ -103,6 +106,49 @@ export function ProfilePage({ isDark, onBackToUpload, onNavigateToAttendance, on
     }
   };
 
+  const handleCloseSession = (e: React.MouseEvent, session: Session) => {
+    e.stopPropagation();
+    setSessionToClose(session);
+    setShowCloseConfirm(true);
+  };
+
+  const handleConfirmClose = async () => {
+    if (!sessionToClose) return;
+    const cachedUser = getCachedUser();
+    const username = cachedUser?.username;
+    if (!username) return;
+
+    try {
+      setClosing(true);
+      const response = await fetch('http://localhost:3000/api/profile/close', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, sheet_id: sessionToClose.id }),
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        // Update local state so UI reflects the change immediately
+        setSessions(prev =>
+          prev.map(s =>
+            s.id === sessionToClose.id
+              ? { ...s, status: 'complete', closed_at: data.closed_at || '' }
+              : s
+          )
+        );
+      } else {
+        alert(data.message || 'Failed to close session');
+      }
+    } catch (error) {
+      console.error('Error closing session:', error);
+      alert('Failed to close session');
+    } finally {
+      setClosing(false);
+      setShowCloseConfirm(false);
+      setSessionToClose(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen w-full p-4 flex items-center justify-center">
@@ -112,6 +158,7 @@ export function ProfilePage({ isDark, onBackToUpload, onNavigateToAttendance, on
   }
 
   return (
+    <>
     <div className="min-h-screen w-full p-4 relative overflow-hidden">
       {/* Decorative Background Blobs */}
       <div 
@@ -349,11 +396,7 @@ export function ProfilePage({ isDark, onBackToUpload, onNavigateToAttendance, on
                           </span>
                         </div>
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation(); // Prevent session click when closing
-                            // Add close session logic here
-                            console.log('Closing session:', session.id);
-                          }}
+                          onClick={(e) => handleCloseSession(e, session)}
                           disabled={session.status === 'complete'}
                           className="px-4 py-2 text-sm transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                           style={{
@@ -397,5 +440,61 @@ export function ProfilePage({ isDark, onBackToUpload, onNavigateToAttendance, on
         </div>
       </div>
     </div>
+
+    {/* Close Session Confirmation Dialog */}
+    {showCloseConfirm && sessionToClose && (
+      <div
+        className="fixed inset-0 flex items-center justify-center z-[100]"
+        style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(4px)' }}
+      >
+        <div
+          className="shadow-2xl p-6 md:p-8 max-w-md mx-4"
+          style={{
+            backgroundColor: isDark ? 'rgba(10, 17, 40, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+            border: `2px solid ${isDark ? 'rgba(74, 26, 74, 0.5)' : 'rgba(185, 19, 114, 0.3)'}`
+          }}
+        >
+          <h2
+            className="text-xl md:text-2xl mb-3"
+            style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
+          >
+            Close Session
+          </h2>
+          <p
+            className="text-sm md:text-base opacity-75 mb-6"
+            style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
+          >
+            Are you sure you wanna close the session? If the session is closed once, you can't edit it anymore
+          </p>
+          <div className="flex gap-3 justify-end">
+            <button
+              onClick={() => { setShowCloseConfirm(false); setSessionToClose(null); }}
+              disabled={closing}
+              className="px-4 py-2 md:px-6 md:py-2.5 transition-all hover:scale-105 hover:shadow-lg text-sm md:text-base"
+              style={{
+                backgroundColor: isDark ? 'rgba(74, 26, 74, 0.3)' : 'rgba(185, 19, 114, 0.15)',
+                color: isDark ? '#f5f0ff' : '#0a1128',
+                border: `1px solid ${isDark ? 'rgba(74, 26, 74, 0.5)' : 'rgba(185, 19, 114, 0.3)'}`
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirmClose}
+              disabled={closing}
+              className="px-4 py-2 md:px-6 md:py-2.5 transition-all hover:scale-105 hover:shadow-lg text-sm md:text-base disabled:opacity-50"
+              style={{
+                background: 'linear-gradient(135deg, #4a1a4a 0%, #b91372 100%)',
+                color: '#ffffff',
+                border: 'none'
+              }}
+            >
+              {closing ? 'Closing...' : 'Close'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

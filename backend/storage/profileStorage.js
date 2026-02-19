@@ -88,3 +88,78 @@ export async function getUserSessions(username) {
     throw new Error(`Failed to fetch user sessions: ${error.message}`);
   }
 }
+
+/**
+ * Close a session by setting status=Complete and closed_at timestamp
+ * @param {string} username - The username closing the session
+ * @param {string} sheet_id - The sheet ID of the session to close
+ * @returns {Promise<Object>} - Result with success status and closed_at
+ */
+export async function closeSession(username, sheet_id) {
+  try {
+    const historySpreadsheetId = process.env.SHEET_HISTORY;
+
+    if (!historySpreadsheetId) {
+      throw new Error("SHEET_HISTORY environment variable is not set");
+    }
+
+    // Fetch all data from SHEET_HISTORY
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: historySpreadsheetId,
+      range: "Sheet1!A:H",
+    });
+
+    const rows = response.data.values || [];
+
+    // Find the row where sheet_id matches (column C, index 2)
+    let targetRowIndex = -1;
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][2] === sheet_id) {
+        targetRowIndex = i;
+        break;
+      }
+    }
+
+    if (targetRowIndex === -1) {
+      return { success: false, message: "Session not found" };
+    }
+
+    // Verify uploaded_by (column E, index 4) matches username
+    const uploadedBy = rows[targetRowIndex][4];
+    if (uploadedBy !== username) {
+      return { success: false, message: "Unauthorized: session does not belong to this user" };
+    }
+
+    // Check if already closed
+    const currentStatus = (rows[targetRowIndex][6] || '').toLowerCase();
+    if (currentStatus === 'complete') {
+      return { success: false, message: "Session is already closed" };
+    }
+
+    // Sheet row number is 1-based (targetRowIndex + 1)
+    const sheetRow = targetRowIndex + 1;
+    const closedAt = new Date().toISOString();
+
+    // Update status (column G) and closed_at (column H)
+    await sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId: historySpreadsheetId,
+      resource: {
+        valueInputOption: "USER_ENTERED",
+        data: [
+          {
+            range: `Sheet1!G${sheetRow}`,
+            values: [["Complete"]]
+          },
+          {
+            range: `Sheet1!H${sheetRow}`,
+            values: [[closedAt]]
+          }
+        ]
+      }
+    });
+
+    return { success: true, closed_at: closedAt };
+  } catch (error) {
+    throw new Error(`Failed to close session: ${error.message}`);
+  }
+}

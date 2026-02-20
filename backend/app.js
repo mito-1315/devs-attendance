@@ -14,10 +14,18 @@ app.use(helmet());
 /* ---------- CORS ---------- */
 // Lock to a specific origin via ALLOWED_ORIGIN env var.
 // Falls back to localhost:5173 in development if the var is not set.
-const allowedOrigin = process.env.ALLOWED_ORIGIN || "http://localhost:5173";
+// ALLOWED_ORIGIN can be a single origin or a comma-separated list,
+// e.g. "http://localhost:5173,https://your-frontend.up.railway.app"
+const rawOrigins = process.env.ALLOWED_ORIGIN || "http://localhost:5173";
+const allowedOrigins = rawOrigins.split(",").map((o) => o.trim());
 app.use(
     cors({
-        origin: allowedOrigin,
+        origin: (origin, callback) => {
+            // Allow requests with no origin (e.g. curl, Postman, server-to-server)
+            if (!origin) return callback(null, true);
+            if (allowedOrigins.includes(origin)) return callback(null, true);
+            callback(new Error(`CORS: origin ${origin} not allowed`));
+        },
         methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
         allowedHeaders: ["Content-Type", "Authorization"],
         credentials: true,

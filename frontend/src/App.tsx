@@ -9,22 +9,24 @@ import { EventStatsBasics } from "./components/EventStatsBasics";
 import { ProfilePage } from "./components/ProfilePage";
 import { CreateUserPage } from "./components/CreateUserPage";
 import { getAuthState, getCachedUser, logout } from "./services/auth";
+import API_BASE_URL from "./config/api";
+
 
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const authState = getAuthState();
-  
+
   if (!authState.isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-  
+
   return <>{children}</>;
 }
 
 // Admin-only Route Component
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const authState = getAuthState();
-  
+
   if (!authState.isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
@@ -33,7 +35,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   if (!user?.isAdmin) {
     return <Navigate to="/upload" replace />;
   }
-  
+
   return <>{children}</>;
 }
 
@@ -59,19 +61,19 @@ function Layout({ children }: { children: React.ReactNode }) {
   const isEventStatsPage = location.pathname === "/eventstats";
   const isProfilePage = location.pathname === "/profile";
   const isCreateUserPage = location.pathname === "/createuser";
-  
+
   const showBackButton = !isLoginPage && !isUploadPage;
 
   const clearAttendanceCache = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/attendance/cache', {
+      const response = await fetch(`${API_BASE_URL}/attendance/cache`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({}), // Clear all cache
       });
-      
+
       if (!response.ok) {
         console.error('Failed to clear cache');
       }
@@ -233,7 +235,7 @@ function AppContent() {
           <LoginPage isDark={true} onLogin={handleLogin} />
         </Layout>
       } />
-      
+
       <Route path="/upload" element={
         <ProtectedRoute>
           <Layout>
@@ -241,7 +243,7 @@ function AppContent() {
           </Layout>
         </ProtectedRoute>
       } />
-      
+
       <Route path="/attendance" element={
         <ProtectedRoute>
           <Layout>
@@ -249,7 +251,7 @@ function AppContent() {
           </Layout>
         </ProtectedRoute>
       } />
-      
+
       <Route path="/history" element={
         <ProtectedRoute>
           <Layout>
@@ -257,9 +259,9 @@ function AppContent() {
           </Layout>
         </ProtectedRoute>
       } />
-      
+
       <Route path="/session" element={<Navigate to="/upload" replace />} />
-      
+
       <Route path="/eventstats" element={
         <ProtectedRoute>
           <Layout>
@@ -267,7 +269,7 @@ function AppContent() {
           </Layout>
         </ProtectedRoute>
       } />
-      
+
       <Route path="/profile" element={
         <ProtectedRoute>
           <Layout>
@@ -275,7 +277,7 @@ function AppContent() {
           </Layout>
         </ProtectedRoute>
       } />
-      
+
       <Route path="/createuser" element={
         <AdminRoute>
           <Layout>
@@ -283,7 +285,7 @@ function AppContent() {
           </Layout>
         </AdminRoute>
       } />
-      
+
       <Route path="/" element={<Navigate to="/login" replace />} />
     </Routes>
   );
@@ -292,7 +294,7 @@ function AppContent() {
 // Wrapper components to handle navigation
 function UploadPageWrapper({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate();
-  
+
   return (
     <UploadPage
       isDark={true}
@@ -307,7 +309,7 @@ function AttendancePageWrapper() {
   const state = location.state as { eventName?: string; from?: string };
   const eventName = state?.eventName || "";
   const from = state?.from || "/upload";
-  
+
   return (
     <AttendancePage
       isDark={true}
@@ -319,7 +321,7 @@ function AttendancePageWrapper() {
 
 function HistoryPageWrapper() {
   const navigate = useNavigate();
-  
+
   return (
     <HistoryPage
       isDark={true}
@@ -335,7 +337,7 @@ function EventStatsPageWrapper() {
   const state = location.state as { eventName?: string; from?: string };
   const eventName = state?.eventName || "";
   const from = state?.from || "/history";
-  
+
   return (
     <EventStatsBasics
       isDark={true}
@@ -347,7 +349,7 @@ function EventStatsPageWrapper() {
 
 function ProfilePageWrapper() {
   const navigate = useNavigate();
-  
+
   return (
     <ProfilePage
       isDark={true}

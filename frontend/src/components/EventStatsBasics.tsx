@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Search, Users, UserCheck, UserX, UserPlus, Download, Copy, Check, Filter } from 'lucide-react';
+import API_BASE_URL from '../config/api';
 
 interface EventStatsBasicsProps {
   isDark: boolean;
@@ -35,10 +36,10 @@ export function EventStatsBasics({ isDark, onBackToHistory, eventName }: EventSt
       try {
         setLoading(true);
         setError('');
-        
+
         // Get sheet_link from localStorage
         const sheetLink = localStorage.getItem('historyEventSheetLink');
-        
+
         if (!sheetLink) {
           setError('No sheet link found. Please select an event from history.');
           setLoading(false);
@@ -59,9 +60,9 @@ export function EventStatsBasics({ isDark, onBackToHistory, eventName }: EventSt
         // Call /history/event endpoint to fetch and cache event data
         console.log('Fetching event data from history...');
         const response = await fetch(
-          `http://localhost:3000/api/history/event?sheet_link=${encodeURIComponent(sheetLink)}`
+          `${API_BASE_URL}/history/event?sheet_link=${encodeURIComponent(sheetLink)}`
         );
-        
+
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.message || 'Failed to fetch event data');
@@ -69,7 +70,7 @@ export function EventStatsBasics({ isDark, onBackToHistory, eventName }: EventSt
 
         const data = await response.json();
         console.log('Event data received:', data);
-        
+
         if (data.success) {
           setRegistered(data.data.registered);
           setPresentCount(data.data.presentCount);
@@ -111,7 +112,7 @@ export function EventStatsBasics({ isDark, onBackToHistory, eventName }: EventSt
 
       // Call export endpoint
       const response = await fetch(
-        `http://localhost:3000/api/history/event/export?spreadsheet_id=${spreadsheetId}`
+        `${API_BASE_URL}/history/event/export?spreadsheet_id=${spreadsheetId}`
       );
 
       if (!response.ok) {
@@ -121,7 +122,7 @@ export function EventStatsBasics({ isDark, onBackToHistory, eventName }: EventSt
 
       // Get the blob from response
       const blob = await response.blob();
-      
+
       // Create download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -129,7 +130,7 @@ export function EventStatsBasics({ isDark, onBackToHistory, eventName }: EventSt
       link.download = `attendance_export_${Date.now()}.zip`;
       document.body.appendChild(link);
       link.click();
-      
+
       // Cleanup
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
@@ -144,12 +145,12 @@ export function EventStatsBasics({ isDark, onBackToHistory, eventName }: EventSt
   const filteredStudents = students.filter(student => {
     const matchesSearch = student.rollNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
       student.name.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesAttendance = 
+
+    const matchesAttendance =
       attendanceFilter === 'all' ? true :
-      attendanceFilter === 'present' ? student.isPresent :
-      !student.isPresent;
-    
+        attendanceFilter === 'present' ? student.isPresent :
+          !student.isPresent;
+
     return matchesSearch && matchesAttendance;
   });
 
@@ -210,24 +211,24 @@ export function EventStatsBasics({ isDark, onBackToHistory, eventName }: EventSt
   return (
     <div className="h-screen w-full flex items-center justify-center px-4 py-20 md:py-8 overflow-hidden relative">
       {/* Decorative Background Blobs */}
-      <div 
+      <div
         className="absolute top-0 right-0 w-96 h-96 blur-3xl opacity-20"
         style={{
-          background: isDark 
+          background: isDark
             ? 'radial-gradient(circle, #4a1a4a 0%, transparent 70%)'
             : 'radial-gradient(circle, #b91372 0%, transparent 70%)'
         }}
       />
-      <div 
+      <div
         className="absolute bottom-0 left-0 w-80 h-80 blur-3xl opacity-15"
         style={{
-          background: isDark 
+          background: isDark
             ? 'radial-gradient(circle, #b91372 0%, transparent 70%)'
             : 'radial-gradient(circle, #4a1a4a 0%, transparent 70%)'
         }}
       />
 
-      <div 
+      <div
         className="w-full max-w-3xl relative mt-20 z-10 shadow-2xl px-4 py-3 md:px-6 md:py-2 backdrop-blur-sm flex flex-col gap-4 md:gap-5"
         style={{
           backgroundColor: isDark ? 'rgba(10, 17, 40, 0.8)' : 'rgba(255, 255, 255, 0.9)',
@@ -238,29 +239,29 @@ export function EventStatsBasics({ isDark, onBackToHistory, eventName }: EventSt
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 
+            <h1
               className="text-xl md:text-2xl truncate max-w-full"
-              style={{ 
+              style={{
                 color: isDark ? '#f5f0ff' : '#0a1128',
                 fontSize: eventName.length > 30 ? 'clamp(1rem, 4vw, 1.5rem)' : undefined
               }}
             >
               {eventName}
             </h1>
-            <p 
+            <p
               className="text-sm md:text-base opacity-60 mt-1"
               style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
             >
               Attendees of the Event
             </p>
           </div>
-          
-          
+
+
         </div>
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
-          <div 
+          <div
             className="p-2 md:p-3"
             style={{
               backgroundColor: isDark ? 'rgba(74, 26, 74, 0.2)' : 'rgba(185, 19, 114, 0.1)',
@@ -273,7 +274,7 @@ export function EventStatsBasics({ isDark, onBackToHistory, eventName }: EventSt
             </div>
             <p className="text-xl md:text-2xl font-semibold" style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}>{registered}</p>
           </div>
-          <div 
+          <div
             className="p-2 md:p-3"
             style={{
               backgroundColor: isDark ? 'rgba(74, 26, 74, 0.2)' : 'rgba(185, 19, 114, 0.1)',
@@ -286,7 +287,7 @@ export function EventStatsBasics({ isDark, onBackToHistory, eventName }: EventSt
             </div>
             <p className="text-xl md:text-2xl font-semibold" style={{ color: isDark ? '#fbbf24' : '#f59e0b' }}>{onSpotCount}</p>
           </div>
-          <div 
+          <div
             className="p-2 md:p-3"
             style={{
               backgroundColor: isDark ? 'rgba(74, 26, 74, 0.2)' : 'rgba(185, 19, 114, 0.1)',
@@ -299,7 +300,7 @@ export function EventStatsBasics({ isDark, onBackToHistory, eventName }: EventSt
             </div>
             <p className="text-xl md:text-2xl font-semibold" style={{ color: isDark ? '#4ade80' : '#22c55e' }}>{presentCount}</p>
           </div>
-          <div 
+          <div
             className="p-2 md:p-3"
             style={{
               backgroundColor: isDark ? 'rgba(74, 26, 74, 0.2)' : 'rgba(185, 19, 114, 0.1)',
@@ -317,15 +318,15 @@ export function EventStatsBasics({ isDark, onBackToHistory, eventName }: EventSt
         {/* Search and Filter Bar */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <label 
-              htmlFor="search" 
+            <label
+              htmlFor="search"
               className="block mb-2 text-sm md:text-base opacity-75"
               style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
             >
               Search Student
             </label>
             <div className="relative">
-              <Search 
+              <Search
                 className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 w-5 h-5 md:w-6 md:h-6 opacity-50"
                 style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
               />
@@ -346,15 +347,15 @@ export function EventStatsBasics({ isDark, onBackToHistory, eventName }: EventSt
           </div>
 
           <div>
-            <label 
-              htmlFor="attendanceFilter" 
+            <label
+              htmlFor="attendanceFilter"
               className="block mb-2 text-sm md:text-base opacity-75"
               style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
             >
               Filter by Attendance
             </label>
             <div className="relative">
-              <Filter 
+              <Filter
                 className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 w-5 h-5 md:w-6 md:h-6 opacity-50"
                 style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
               />
@@ -378,7 +379,7 @@ export function EventStatsBasics({ isDark, onBackToHistory, eventName }: EventSt
         </div>
 
         {/* Attendance Table */}
-        <div 
+        <div
           className="overflow-hidden flex flex-col flex-1"
           style={{
             backgroundColor: isDark ? 'rgba(26, 34, 56, 0.5)' : 'rgba(255, 255, 255, 0.5)',
@@ -386,10 +387,10 @@ export function EventStatsBasics({ isDark, onBackToHistory, eventName }: EventSt
           }}
         >
           {/* Table Header */}
-          <div 
+          <div
             className="grid grid-cols-2 p-3 md:p-4"
             style={{
-              background: isDark 
+              background: isDark
                 ? 'linear-gradient(135deg, #4a1a4a 0%, #b91372 100%)'
                 : 'linear-gradient(135deg, #b91372 0%, #4a1a4a 100%)',
               color: '#ffffff',
@@ -401,7 +402,7 @@ export function EventStatsBasics({ isDark, onBackToHistory, eventName }: EventSt
           </div>
 
           {/* Table Body */}
-          <div 
+          <div
             className="overflow-y-auto flex-1 custom-scrollbar"
             style={{
               maxHeight: '250px'
@@ -429,7 +430,7 @@ export function EventStatsBasics({ isDark, onBackToHistory, eventName }: EventSt
                 style={{
                   borderTop: index === 0 ? 'none' : `1px solid ${isDark ? 'rgba(74, 26, 74, 0.4)' : 'rgba(185, 19, 114, 0.2)'}`,
                   color: isDark ? '#f5f0ff' : '#0a1128',
-                  backgroundColor: student.isPresent 
+                  backgroundColor: student.isPresent
                     ? (isDark ? 'rgba(34, 197, 94, 0.15)' : 'rgba(34, 197, 94, 0.1)')
                     : (isDark ? 'rgba(10, 17, 40, 0.3)' : 'rgba(255, 255, 255, 0.3)'),
                   minHeight: '60px'
@@ -446,19 +447,19 @@ export function EventStatsBasics({ isDark, onBackToHistory, eventName }: EventSt
           </div>
         </div>
         <button
-              onClick={handleExport}
-              className="w-full py-2 transition-all hover:scale-105 hover:shadow-lg text-white"
-              style={{
-                background: isDark 
-                  ? 'linear-gradient(135deg, #4a1a4a 0%, #b91372 100%)'
-                  : 'linear-gradient(135deg, #b91372 0%, #4a1a4a 100%)'
-              }}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <Download className="w-5 h-5" />
-                <span>Export</span>
-              </div>
-            </button>
+          onClick={handleExport}
+          className="w-full py-2 transition-all hover:scale-105 hover:shadow-lg text-white"
+          style={{
+            background: isDark
+              ? 'linear-gradient(135deg, #4a1a4a 0%, #b91372 100%)'
+              : 'linear-gradient(135deg, #b91372 0%, #4a1a4a 100%)'
+          }}
+        >
+          <div className="flex items-center justify-center gap-2">
+            <Download className="w-5 h-5" />
+            <span>Export</span>
+          </div>
+        </button>
       </div>
     </div>
   );

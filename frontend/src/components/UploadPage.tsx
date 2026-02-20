@@ -13,6 +13,8 @@ import {
   Loader2
 } from "lucide-react";
 import { logout, getCachedUser } from "../services/auth";
+import API_BASE_URL from "../config/api";
+
 
 interface UploadPageProps {
   isDark: boolean;
@@ -88,7 +90,7 @@ export function UploadPage({
     setErrorMessage("");
 
     try {
-      const response = await fetch("http://localhost:3000/api/upload/validate", {
+      const response = await fetch(`${API_BASE_URL}/upload/validate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -132,7 +134,7 @@ export function UploadPage({
       const user = getCachedUser();
       const username = user?.username || "unknown";
 
-      const response = await fetch("http://localhost:3000/api/upload/uploadSheet", {
+      const response = await fetch(`${API_BASE_URL}/upload/uploadSheet`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -214,9 +216,8 @@ export function UploadPage({
                 backgroundColor: isDark
                   ? "rgba(10, 17, 40, 0.95)"
                   : "rgba(255, 255, 255, 0.95)",
-                border: `1px solid ${
-                  isDark ? "rgba(74, 26, 74, 0.5)" : "rgba(185, 19, 114, 0.3)"
-                }`,
+                border: `1px solid ${isDark ? "rgba(74, 26, 74, 0.5)" : "rgba(185, 19, 114, 0.3)"
+                  }`,
               }}
             >
               <button
@@ -227,9 +228,8 @@ export function UploadPage({
                     ? "rgba(74, 26, 74, 0.2)"
                     : "rgba(185, 19, 114, 0.1)",
                   color: isDark ? "#f5f0ff" : "#0a1128",
-                  borderBottom: `1px solid ${
-                    isDark ? "rgba(74, 26, 74, 0.3)" : "rgba(185, 19, 114, 0.2)"
-                  }`,
+                  borderBottom: `1px solid ${isDark ? "rgba(74, 26, 74, 0.3)" : "rgba(185, 19, 114, 0.2)"
+                    }`,
                 }}
               >
                 <Upload
@@ -246,9 +246,8 @@ export function UploadPage({
                     ? "rgba(74, 26, 74, 0.2)"
                     : "rgba(185, 19, 114, 0.1)",
                   color: isDark ? "#f5f0ff" : "#0a1128",
-                  borderBottom: `1px solid ${
-                    isDark ? "rgba(74, 26, 74, 0.3)" : "rgba(185, 19, 114, 0.2)"
-                  }`,
+                  borderBottom: `1px solid ${isDark ? "rgba(74, 26, 74, 0.3)" : "rgba(185, 19, 114, 0.2)"
+                    }`,
                 }}
               >
                 <History
@@ -265,9 +264,8 @@ export function UploadPage({
                     ? "rgba(74, 26, 74, 0.2)"
                     : "rgba(185, 19, 114, 0.1)",
                   color: isDark ? "#f5f0ff" : "#0a1128",
-                  borderBottom: `1px solid ${
-                    isDark ? "rgba(74, 26, 74, 0.3)" : "rgba(185, 19, 114, 0.2)"
-                  }`,
+                  borderBottom: `1px solid ${isDark ? "rgba(74, 26, 74, 0.3)" : "rgba(185, 19, 114, 0.2)"
+                    }`,
                 }}
               >
                 <User
@@ -323,9 +321,8 @@ export function UploadPage({
             backgroundColor: isDark
               ? "rgba(10, 17, 40, 0.8)"
               : "rgba(255, 255, 255, 0.9)",
-            border: `1px solid ${
-              isDark ? "rgba(74, 26, 74, 0.3)" : "rgba(185, 19, 114, 0.2)"
-            }`,
+            border: `1px solid ${isDark ? "rgba(74, 26, 74, 0.3)" : "rgba(185, 19, 114, 0.2)"
+              }`,
           }}
         >
           {/* Icon Header */}
@@ -376,7 +373,7 @@ export function UploadPage({
               </button>
 
               <div>
-                <label 
+                <label
                   className="block text-sm mb-2"
                   style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
                 >
@@ -421,7 +418,7 @@ export function UploadPage({
               disabled={!linkFilled || isValidating}
               className="w-full py-4 transition-all hover:scale-105 hover:shadow-lg text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
               style={{
-                background: isDark 
+                background: isDark
                   ? 'linear-gradient(135deg, #4a1a4a 0%, #b91372 100%)'
                   : 'linear-gradient(135deg, #b91372 0%, #4a1a4a 100%)'
               }}
@@ -454,9 +451,8 @@ export function UploadPage({
               backgroundColor: isDark
                 ? "rgba(10, 17, 40, 0.95)"
                 : "rgba(255, 255, 255, 0.95)",
-              border: `2px solid ${
-                isDark ? "rgba(74, 26, 74, 0.5)" : "rgba(185, 19, 114, 0.3)"
-              }`,
+              border: `2px solid ${isDark ? "rgba(74, 26, 74, 0.5)" : "rgba(185, 19, 114, 0.3)"
+                }`,
             }}
           >
             <h2
@@ -492,9 +488,8 @@ export function UploadPage({
                     ? "rgba(74, 26, 74, 0.3)"
                     : "rgba(185, 19, 114, 0.15)",
                   color: isDark ? "#f5f0ff" : "#0a1128",
-                  border: `1px solid ${
-                    isDark ? "rgba(74, 26, 74, 0.5)" : "rgba(185, 19, 114, 0.3)"
-                  }`,
+                  border: `1px solid ${isDark ? "rgba(74, 26, 74, 0.5)" : "rgba(185, 19, 114, 0.3)"
+                    }`,
                 }}
               >
                 Cancel
@@ -527,15 +522,15 @@ export function UploadPage({
             backdropFilter: "blur(4px)",
           }}
         >
-          <div 
+          <div
             className="shadow-2xl p-6 md:p-8 max-w-2xl mx-4 w-full max-h-[80vh] overflow-y-auto"
             style={{
               backgroundColor: isDark ? 'rgba(10, 17, 40, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-              border: `2px solid ${isDark ? 'rgba(74, 26, 74, 0.5)' : 'rgba(185, 19, 114, 0.3)'}`  
+              border: `2px solid ${isDark ? 'rgba(74, 26, 74, 0.5)' : 'rgba(185, 19, 114, 0.3)'}`
             }}
           >
             <div className="flex items-center justify-between mb-4">
-              <h2 
+              <h2
                 className="text-xl md:text-2xl"
                 style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
               >
@@ -549,8 +544,8 @@ export function UploadPage({
                 ×
               </button>
             </div>
-            
-            <div 
+
+            <div
               className="space-y-4 text-sm md:text-base"
               style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
             >
@@ -626,7 +621,7 @@ export function UploadPage({
                 onClick={() => setShowReadMeModal(false)}
                 className="px-6 py-2.5 transition-all hover:scale-105 hover:shadow-lg text-white"
                 style={{
-                  background: isDark 
+                  background: isDark
                     ? 'linear-gradient(135deg, #4a1a4a 0%, #b91372 100%)'
                     : 'linear-gradient(135deg, #b91372 0%, #4a1a4a 100%)'
                 }}

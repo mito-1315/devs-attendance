@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Search, FileSpreadsheet, CheckCircle, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import API_BASE_URL from '../config/api';
+
 
 interface HistoryPageProps {
   isDark: boolean;
@@ -32,16 +34,16 @@ export function HistoryPage({ isDark, onNavigateToEventStats }: HistoryPageProps
       try {
         setLoading(true);
         setError('');
-        
-        const response = await fetch('http://localhost:3000/api/history');
-        
+
+        const response = await fetch(`${API_BASE_URL}/history`);
+
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.message || 'Failed to fetch history');
         }
 
         const data = await response.json();
-        
+
         if (data.success) {
           setHistoryData(data.data);
         } else {
@@ -165,18 +167,18 @@ export function HistoryPage({ isDark, onNavigateToEventStats }: HistoryPageProps
   return (
     <div className="min-h-screen w-full p-4 relative overflow-hidden">
       {/* Decorative Background Blobs */}
-      <div 
+      <div
         className="absolute top-0 right-0 w-96 h-96 blur-3xl opacity-20"
         style={{
-          background: isDark 
+          background: isDark
             ? 'radial-gradient(circle, #4a1a4a 0%, transparent 70%)'
             : 'radial-gradient(circle, #b91372 0%, transparent 70%)'
         }}
       />
-      <div 
+      <div
         className="absolute bottom-0 left-0 w-80 h-80 blur-3xl opacity-15"
         style={{
-          background: isDark 
+          background: isDark
             ? 'radial-gradient(circle, #b91372 0%, transparent 70%)'
             : 'radial-gradient(circle, #4a1a4a 0%, transparent 70%)'
         }}
@@ -184,17 +186,17 @@ export function HistoryPage({ isDark, onNavigateToEventStats }: HistoryPageProps
 
       {/* Main Content */}
       <div className="max-w-5xl mx-auto relative z-10 pt-24">
-        <div 
+        <div
           className="shadow-2xl p-8 mt-7 md:p-12 backdrop-blur-sm relative z-0"
           style={{
             backgroundColor: isDark ? 'rgba(10, 17, 40, 0.8)' : 'rgba(255, 255, 255, 0.9)',
             border: `1px solid ${isDark ? 'rgba(74, 26, 74, 0.3)' : 'rgba(185, 19, 114, 0.2)'}`
           }}
         >
-          
+
 
           <div className="text-center mb-4">
-            <h1 
+            <h1
               className="text-3xl md:text-4xl mb-2"
               style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
             >
@@ -204,15 +206,15 @@ export function HistoryPage({ isDark, onNavigateToEventStats }: HistoryPageProps
 
           {/* Search Bar */}
           <div className="mb-6">
-            <div 
+            <div
               className="flex items-center gap-3 p-4 backdrop-blur-sm"
               style={{
                 backgroundColor: isDark ? 'rgba(74, 26, 74, 0.1)' : 'rgba(185, 19, 114, 0.05)',
                 border: `1px solid ${isDark ? 'rgba(74, 26, 74, 0.3)' : 'rgba(185, 19, 114, 0.2)'}`
               }}
             >
-              <Search 
-                className="w-5 h-5 opacity-50" 
+              <Search
+                className="w-5 h-5 opacity-50"
                 style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
               />
               <input
@@ -227,10 +229,10 @@ export function HistoryPage({ isDark, onNavigateToEventStats }: HistoryPageProps
           </div>
 
           {/* History List */}
-          <div 
-            className="space-y-3 overflow-y-auto overflow-x-hidden" 
-            style={{ 
-              minHeight: '400px', 
+          <div
+            className="space-y-3 overflow-y-auto overflow-x-hidden"
+            style={{
+              minHeight: '400px',
               maxHeight: '400px',
               scrollbarColor: isDark ? 'rgba(185, 19, 114, 0.2) transparent' : 'rgba(185, 19, 114, 0.1) transparent',
               scrollbarWidth: 'thin'
@@ -255,7 +257,7 @@ export function HistoryPage({ isDark, onNavigateToEventStats }: HistoryPageProps
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     {/* Event Name */}
                     <div className="flex-1">
-                      <h3 
+                      <h3
                         className="text-lg mb-1"
                         style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
                       >
@@ -279,7 +281,7 @@ export function HistoryPage({ isDark, onNavigateToEventStats }: HistoryPageProps
                       {record.status.toLowerCase() === 'active' ? (
                         <>
                           <CheckCircle className="w-5 h-5" style={{ color: '#22c55e' }} />
-                          <span 
+                          <span
                             className="text-sm px-3 py-1"
                             style={{
                               color: '#22c55e',
@@ -293,7 +295,7 @@ export function HistoryPage({ isDark, onNavigateToEventStats }: HistoryPageProps
                       ) : (
                         <>
                           <Clock className="w-5 h-5" style={{ color: '#f59e0b' }} />
-                          <span 
+                          <span
                             className="text-sm px-3 py-1"
                             style={{
                               color: '#f59e0b',
@@ -310,7 +312,7 @@ export function HistoryPage({ isDark, onNavigateToEventStats }: HistoryPageProps
                 </div>
               ))
             ) : (
-              <div 
+              <div
                 className="text-center py-12 opacity-60"
                 style={{ color: isDark ? '#f5f0ff' : '#0a1128' }}
               >

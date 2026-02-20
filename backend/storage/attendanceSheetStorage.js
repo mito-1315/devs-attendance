@@ -1,9 +1,6 @@
-import sheets from "../middleware/googlesheetsapi.js";
-import dotenv from "dotenv";
+import getSheets from "../middleware/googlesheetsapi.js";
 import XLSX from 'xlsx';
 import archiver from 'archiver';
-
-dotenv.config();
 
 /**
  * Fetch all details from a Google Sheet including headers and data
@@ -13,19 +10,19 @@ dotenv.config();
 export async function fetchDetails(spreadsheetId) {
   try {
     // Fetch spreadsheet metadata (name)
-    const metadataResponse = await sheets.spreadsheets.get({
+    const metadataResponse = await getSheets().spreadsheets.get({
       spreadsheetId,
     });
     const sheetName = metadataResponse.data.properties.title;
 
     // Fetch all data including headers
-    const dataResponse = await sheets.spreadsheets.values.get({
+    const dataResponse = await getSheets().spreadsheets.values.get({
       spreadsheetId,
       range: "Sheet1!A:Z", // Fetch all columns
     });
 
     const allRows = dataResponse.data.values || [];
-    
+
     if (allRows.length === 0) {
       return {
         sheetName,
@@ -59,15 +56,15 @@ export async function fetchDetails(spreadsheetId) {
 export async function ensureCommitColumn(spreadsheetId) {
   try {
     // Fetch current headers
-    const headerResponse = await sheets.spreadsheets.values.get({
+    const headerResponse = await getSheets().spreadsheets.values.get({
       spreadsheetId,
       range: "Sheet1!A1:Z1",
     });
 
     const headers = headerResponse.data.values ? headerResponse.data.values[0] : [];
-    
+
     // Check if commit column already exists
-    const commitIndex = headers.findIndex(h => 
+    const commitIndex = headers.findIndex(h =>
       h && h.toLowerCase() === 'commit'
     );
 
@@ -85,7 +82,7 @@ export async function ensureCommitColumn(spreadsheetId) {
     const nextColumnLetter = getColumnLetter(nextColumnIndex);
 
     // Add "commit" header
-    await sheets.spreadsheets.values.update({
+    await getSheets().spreadsheets.values.update({
       spreadsheetId,
       range: `Sheet1!${nextColumnLetter}1`,
       valueInputOption: "USER_ENTERED",
@@ -95,7 +92,7 @@ export async function ensureCommitColumn(spreadsheetId) {
     });
 
     // Get the total number of rows with data
-    const dataResponse = await sheets.spreadsheets.values.get({
+    const dataResponse = await getSheets().spreadsheets.values.get({
       spreadsheetId,
       range: "Sheet1!A:A", // Get column A to count rows
     });
@@ -109,7 +106,7 @@ export async function ensureCommitColumn(spreadsheetId) {
         checkboxValues.push([false]);
       }
 
-      await sheets.spreadsheets.values.update({
+      await getSheets().spreadsheets.values.update({
         spreadsheetId,
         range: `Sheet1!${nextColumnLetter}2:${nextColumnLetter}${totalRows}`,
         valueInputOption: "USER_ENTERED",
@@ -138,15 +135,15 @@ export async function ensureCommitColumn(spreadsheetId) {
 export async function ensureMarkedByColumn(spreadsheetId) {
   try {
     // Fetch current headers
-    const headerResponse = await sheets.spreadsheets.values.get({
+    const headerResponse = await getSheets().spreadsheets.values.get({
       spreadsheetId,
       range: "Sheet1!A1:Z1",
     });
 
     const headers = headerResponse.data.values ? headerResponse.data.values[0] : [];
-    
+
     // Check if marked_by column already exists
-    const markedByIndex = headers.findIndex(h => 
+    const markedByIndex = headers.findIndex(h =>
       h && h.toLowerCase() === 'marked_by'
     );
 
@@ -164,7 +161,7 @@ export async function ensureMarkedByColumn(spreadsheetId) {
     const nextColumnLetter = getColumnLetter(nextColumnIndex);
 
     // Add "marked_by" header
-    await sheets.spreadsheets.values.update({
+    await getSheets().spreadsheets.values.update({
       spreadsheetId,
       range: `Sheet1!${nextColumnLetter}1`,
       valueInputOption: "USER_ENTERED",
@@ -174,7 +171,7 @@ export async function ensureMarkedByColumn(spreadsheetId) {
     });
 
     // Get the total number of rows with data
-    const dataResponse = await sheets.spreadsheets.values.get({
+    const dataResponse = await getSheets().spreadsheets.values.get({
       spreadsheetId,
       range: "Sheet1!A:A", // Get column A to count rows
     });
@@ -188,7 +185,7 @@ export async function ensureMarkedByColumn(spreadsheetId) {
         emptyValues.push([""]);
       }
 
-      await sheets.spreadsheets.values.update({
+      await getSheets().spreadsheets.values.update({
         spreadsheetId,
         range: `Sheet1!${nextColumnLetter}2:${nextColumnLetter}${totalRows}`,
         valueInputOption: "USER_ENTERED",
@@ -219,13 +216,13 @@ export async function ensureMarkedByColumn(spreadsheetId) {
 export async function updateCommitStatus(spreadsheetId, rollNumbers, username) {
   try {
     // Fetch current headers and data
-    const dataResponse = await sheets.spreadsheets.values.get({
+    const dataResponse = await getSheets().spreadsheets.values.get({
       spreadsheetId,
       range: "Sheet1!A:Z",
     });
 
     const allRows = dataResponse.data.values || [];
-    
+
     if (allRows.length === 0) {
       throw new Error("Sheet is empty");
     }
@@ -234,16 +231,16 @@ export async function updateCommitStatus(spreadsheetId, rollNumbers, username) {
     const data = allRows.slice(1);
 
     // Find column indices
-    const rollNumberIndex = headers.findIndex(h => 
+    const rollNumberIndex = headers.findIndex(h =>
       h && (h.toLowerCase() === 'roll_number' || h.toLowerCase().includes('roll'))
     );
-    const attendanceIndex = headers.findIndex(h => 
+    const attendanceIndex = headers.findIndex(h =>
       h && (h.toLowerCase() === 'attendance' || h.toLowerCase() === 'status')
     );
-    const commitIndex = headers.findIndex(h => 
+    const commitIndex = headers.findIndex(h =>
       h && h.toLowerCase() === 'commit'
     );
-    const markedByIndex = headers.findIndex(h => 
+    const markedByIndex = headers.findIndex(h =>
       h && h.toLowerCase() === 'marked_by'
     );
 
@@ -270,7 +267,7 @@ export async function updateCommitStatus(spreadsheetId, rollNumbers, username) {
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
       const rollNumber = row[rollNumberIndex];
-      
+
       if (rollNumbers.includes(rollNumber)) {
         const rowNumber = i + 2; // +2 because: 0-indexed array + header row
         // Update attendance column to TRUE
@@ -294,7 +291,7 @@ export async function updateCommitStatus(spreadsheetId, rollNumbers, username) {
 
     // Batch update all columns
     if (updates.length > 0) {
-      await sheets.spreadsheets.values.batchUpdate({
+      await getSheets().spreadsheets.values.batchUpdate({
         spreadsheetId,
         resource: {
           valueInputOption: "USER_ENTERED",
@@ -326,7 +323,7 @@ export async function addStudentOnSpot(spreadsheetId, studentData, username) {
     const { name, roll_number, mail_id, department } = studentData;
 
     // Get current sheet structure to find the next row
-    const dataResponse = await sheets.spreadsheets.values.get({
+    const dataResponse = await getSheets().spreadsheets.values.get({
       spreadsheetId,
       range: "Sheet1!A:A",
     });
@@ -338,7 +335,7 @@ export async function addStudentOnSpot(spreadsheetId, studentData, username) {
     const newRow = [name, roll_number, mail_id, department, true, true, "ON-SPOT", username];
 
     // Append the new row
-    await sheets.spreadsheets.values.append({
+    await getSheets().spreadsheets.values.append({
       spreadsheetId,
       range: `Sheet1!A${newRowNumber}`,
       valueInputOption: "USER_ENTERED",
@@ -371,17 +368,17 @@ export async function addStudentOnSpot(spreadsheetId, studentData, username) {
  */
 export function prepareExportData(cachedData) {
   const headers = cachedData.headers;
-  
+
   // Find column indices
   const nameIndex = headers.findIndex(h => h && h.toLowerCase() === 'name');
-  const rollNumberIndex = headers.findIndex(h => 
+  const rollNumberIndex = headers.findIndex(h =>
     h && (h.toLowerCase() === 'roll_number' || h.toLowerCase().includes('roll'))
   );
-  const mailIdIndex = headers.findIndex(h => 
+  const mailIdIndex = headers.findIndex(h =>
     h && (h.toLowerCase() === 'mail_id' || h.toLowerCase().includes('mail'))
   );
   const departmentIndex = headers.findIndex(h => h && h.toLowerCase() === 'department');
-  const attendanceIndex = headers.findIndex(h => 
+  const attendanceIndex = headers.findIndex(h =>
     h && (h.toLowerCase() === 'attendance' || h.toLowerCase() === 'status')
   );
   const typeIndex = headers.findIndex(h => h && h.toLowerCase() === 'type');
@@ -445,16 +442,16 @@ export function prepareExportData(cachedData) {
 export function createExcelFile(data, sheetName) {
   // Create workbook
   const workbook = XLSX.utils.book_new();
-  
+
   // Convert data to worksheet
   const worksheet = XLSX.utils.json_to_sheet(data);
-  
+
   // Add worksheet to workbook
   XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
-  
+
   // Generate buffer
   const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-  
+
   return buffer;
 }
 

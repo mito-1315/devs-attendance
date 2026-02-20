@@ -1,5 +1,4 @@
-// filepath: e:\Workspace\devs-attendance\backend\storage\createUserStorage.js
-import sheets from "../middleware/googlesheetsapi.js";
+import getSheets from "../middleware/googlesheetsapi.js";
 
 /**
  * Check if a user already exists in the spreadsheet
@@ -7,7 +6,7 @@ import sheets from "../middleware/googlesheetsapi.js";
  * @returns {Promise<boolean>} - Returns true if user exists, false otherwise
  */
 export async function checkIfUserExist(username) {
-  const response = await sheets.spreadsheets.values.get({
+  const response = await getSheets().spreadsheets.values.get({
     spreadsheetId: process.env.ATTENDANCE_SHEET,
     range: "Sheet1!A:A", // Read only column A (username column)
   });
@@ -47,8 +46,8 @@ export async function addUser(username, name, roll_number, department, team, rol
   try {
     // Convert roll_number to integer
     const rollNumberInt = parseInt(roll_number, 10);
-    
-    const response = await sheets.spreadsheets.values.append({
+
+    const response = await getSheets().spreadsheets.values.append({
       spreadsheetId: process.env.ATTENDANCE_SHEET,
       range: "Sheet1!A:H",
       valueInputOption: "RAW",

@@ -1,7 +1,10 @@
+// ⚠️  dotenv MUST be configured before any other imports so that all modules
+//     that read process.env at load time (e.g. googlesheetsapi.js) receive
+//     the correct values.
 import dotenv from "dotenv";
-import app from "./app.js";
-
 dotenv.config();
+
+import app from "./app.js";
 
 const PORT = process.env.PORT || 3000;
 

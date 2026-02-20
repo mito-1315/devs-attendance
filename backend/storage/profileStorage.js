@@ -1,7 +1,4 @@
-import sheets from "../middleware/googlesheetsapi.js";
-import dotenv from "dotenv";
-
-dotenv.config();
+import getSheets from "../middleware/googlesheetsapi.js";
 
 /**
  * Fetch user profile data by username from ATTENDANCE_SHEET
@@ -10,7 +7,7 @@ dotenv.config();
  */
 export async function getUserProfile(username) {
   try {
-    const response = await sheets.spreadsheets.values.get({
+    const response = await getSheets().spreadsheets.values.get({
       spreadsheetId: process.env.ATTENDANCE_SHEET,
       range: "Sheet1!A:F", // username, name, roll_number, department, team, role
     });
@@ -50,13 +47,13 @@ export async function getUserProfile(username) {
 export async function getUserSessions(username) {
   try {
     const historySpreadsheetId = process.env.SHEET_HISTORY;
-    
+
     if (!historySpreadsheetId) {
       throw new Error("SHEET_HISTORY environment variable is not set");
     }
 
     // Fetch all data from SHEET_HISTORY
-    const response = await sheets.spreadsheets.values.get({
+    const response = await getSheets().spreadsheets.values.get({
       spreadsheetId: historySpreadsheetId,
       range: "Sheet1!A:H", // sheet_name, sheet_link, sheet_id, event_name, uploaded_by, uploaded_at, status, closed_at
     });
@@ -104,7 +101,7 @@ export async function closeSession(username, sheet_id) {
     }
 
     // Fetch all data from SHEET_HISTORY
-    const response = await sheets.spreadsheets.values.get({
+    const response = await getSheets().spreadsheets.values.get({
       spreadsheetId: historySpreadsheetId,
       range: "Sheet1!A:H",
     });
@@ -141,7 +138,7 @@ export async function closeSession(username, sheet_id) {
     const closedAt = new Date().toISOString();
 
     // Update status (column G) and closed_at (column H)
-    await sheets.spreadsheets.values.batchUpdate({
+    await getSheets().spreadsheets.values.batchUpdate({
       spreadsheetId: historySpreadsheetId,
       resource: {
         valueInputOption: "USER_ENTERED",

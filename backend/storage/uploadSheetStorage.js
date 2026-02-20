@@ -1,7 +1,4 @@
-import sheets from "../middleware/googlesheetsapi.js";
-import dotenv from "dotenv";
-
-dotenv.config();
+import getSheets from "../middleware/googlesheetsapi.js";
 
 /**
  * Fetch the spreadsheet name
@@ -10,10 +7,10 @@ dotenv.config();
  */
 export async function fetchSpreadsheetName(spreadsheetId) {
   try {
-    const response = await sheets.spreadsheets.get({
+    const response = await getSheets().spreadsheets.get({
       spreadsheetId,
     });
-    
+
     return response.data.properties.title;
   } catch (error) {
     throw new Error(`Failed to fetch spreadsheet name: ${error.message}`);
@@ -27,11 +24,11 @@ export async function fetchSpreadsheetName(spreadsheetId) {
  */
 export async function fetchHeaders(spreadsheetId) {
   try {
-    const response = await sheets.spreadsheets.values.get({
+    const response = await getSheets().spreadsheets.values.get({
       spreadsheetId,
       range: "Sheet1!A1:Z1", // Fetch first row
     });
-    
+
     const headers = response.data.values ? response.data.values[0] : [];
     return headers;
   } catch (error) {
@@ -46,11 +43,11 @@ export async function fetchHeaders(spreadsheetId) {
  */
 export async function fetchData(spreadsheetId) {
   try {
-    const response = await sheets.spreadsheets.values.get({
+    const response = await getSheets().spreadsheets.values.get({
       spreadsheetId,
       range: "Sheet1!A2:E", // Fetch from row 2 onwards (skip header)
     });
-    
+
     const data = response.data.values || [];
     return data;
   } catch (error) {
@@ -66,19 +63,19 @@ export async function fetchData(spreadsheetId) {
 export async function checkSheetIdExists(sheetId) {
   try {
     const historySpreadsheetId = process.env.SHEET_HISTORY;
-    
+
     if (!historySpreadsheetId) {
       throw new Error("SHEET_HISTORY environment variable is not set");
     }
 
     // Fetch all data from SHEET_HISTORY
-    const response = await sheets.spreadsheets.values.get({
+    const response = await getSheets().spreadsheets.values.get({
       spreadsheetId: historySpreadsheetId,
       range: "Sheet1!A:H", // All columns: sheet_name, sheet_link, sheet_id, event_name, uploaded_by, uploaded_at, status, closed_at
     });
 
     const rows = response.data.values || [];
-    
+
     // Skip header row (index 0) and check if sheetId exists
     for (let i = 1; i < rows.length; i++) {
       if (rows[i][2] === sheetId) { // Column C (index 2) contains sheet_id
@@ -94,7 +91,7 @@ export async function checkSheetIdExists(sheetId) {
         };
       }
     }
-    
+
     return null;
   } catch (error) {
     throw new Error(`Failed to check sheet_id existence: ${error.message}`);
@@ -112,17 +109,17 @@ export async function checkSheetIdExists(sheetId) {
 export async function addColumnToSheet(spreadsheetId, columnName, defaultValue, dataRowCount) {
   try {
     // First, get current headers to find next available column
-    const headersResponse = await sheets.spreadsheets.values.get({
+    const headersResponse = await getSheets().spreadsheets.values.get({
       spreadsheetId,
       range: "Sheet1!A1:Z1",
     });
-    
+
     const currentHeaders = headersResponse.data.values ? headersResponse.data.values[0] : [];
     const nextColumnIndex = currentHeaders.length;
     const columnLetter = String.fromCharCode(65 + nextColumnIndex); // A=65, B=66, etc.
-    
+
     // Add header
-    await sheets.spreadsheets.values.update({
+    await getSheets().spreadsheets.values.update({
       spreadsheetId,
       range: `Sheet1!${columnLetter}1`,
       valueInputOption: "RAW",
@@ -130,11 +127,11 @@ export async function addColumnToSheet(spreadsheetId, columnName, defaultValue, 
         values: [[columnName]]
       }
     });
-    
+
     // Add default values for all data rows
     if (dataRowCount > 0) {
       const defaultValues = Array(dataRowCount).fill([defaultValue]);
-      await sheets.spreadsheets.values.update({
+      await getSheets().spreadsheets.values.update({
         spreadsheetId,
         range: `Sheet1!${columnLetter}2:${columnLetter}${dataRowCount + 1}`,
         valueInputOption: "RAW",
@@ -143,7 +140,7 @@ export async function addColumnToSheet(spreadsheetId, columnName, defaultValue, 
         }
       });
     }
-    
+
     console.log(`Added column '${columnName}' with default value '${defaultValue}' to ${dataRowCount} rows`);
   } catch (error) {
     throw new Error(`Failed to add column to sheet: ${error.message}`);
@@ -165,7 +162,7 @@ export async function addColumnToSheet(spreadsheetId, columnName, defaultValue, 
 export async function addToSheetHistory(historyData) {
   try {
     const historySpreadsheetId = process.env.SHEET_HISTORY;
-    
+
     if (!historySpreadsheetId) {
       throw new Error("SHEET_HISTORY environment variable is not set");
     }
@@ -181,7 +178,7 @@ export async function addToSheetHistory(historyData) {
       historyData.closed_at || "" // Leave empty if not provided
     ]];
 
-    await sheets.spreadsheets.values.append({
+    await getSheets().spreadsheets.values.append({
       spreadsheetId: historySpreadsheetId,
       range: "Sheet1!A:H", // Assuming SHEET_HISTORY is in Sheet1
       valueInputOption: "RAW",

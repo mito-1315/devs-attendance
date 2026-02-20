@@ -250,7 +250,6 @@ export function CreateUserPage({ isDark }: CreateUserPageProps) {
                       border: isDark
                         ? "1px solid rgba(74, 26, 74, 0.3)"
                         : "1px solid rgba(185, 19, 114, 0.3)",
-                      focusRing: isDark ? "#b91372" : "#4a1a4a",
                     }}
                   />
                 </div>

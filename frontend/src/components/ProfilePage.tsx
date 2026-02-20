@@ -5,7 +5,7 @@ import API_BASE_URL from '../config/api';
 
 interface ProfilePageProps {
   isDark: boolean;
-  onBackToUpload: () => void;
+  onBackToUpload?: () => void;
   onNavigateToAttendance: (sessionName: string) => void;
   onNavigateToEventStats: (sessionName: string) => void;
 }

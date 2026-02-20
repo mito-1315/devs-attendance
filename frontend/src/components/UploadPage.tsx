@@ -4,7 +4,6 @@ import {
   Menu,
   Upload,
   FileSpreadsheet,
-  CheckCircle,
   History,
   User,
   UserPlus,
@@ -18,12 +17,12 @@ import API_BASE_URL from "../config/api";
 
 interface UploadPageProps {
   isDark: boolean;
-  onLogout?: () => void;
+  onLogout: () => void;
 }
 
 export function UploadPage({
   isDark,
-  onLogout,
+  onLogout
 }: UploadPageProps) {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -496,8 +495,8 @@ export function UploadPage({
               </button>
               <button
                 onClick={handleEventNameSubmit}
-                disabled={!eventName}
-                className="px-4 py-2 md:px-6 md:py-2.5 transition-all hover:scale-105 hover:shadow-lg text-sm md:text-base disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                disabled={!eventName || isUploading}
+                className="px-4 py-2 md:px-6 md:py-2.5 transition-all hover:scale-105 hover:shadow-lg text-sm md:text-base disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center gap-2"
                 style={{
                   background: isDark
                     ? "linear-gradient(135deg, #4a1a4a 0%, #b91372 100%)"
@@ -506,7 +505,14 @@ export function UploadPage({
                   border: "none",
                 }}
               >
-                Submit
+                {isUploading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Uploading...</span>
+                  </>
+                ) : (
+                  <span>Submit</span>
+                )}
               </button>
             </div>
           </div>
